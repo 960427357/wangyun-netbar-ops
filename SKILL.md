@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.0.3
+version: 1.0.4
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.0.3
+# 旺云商户端运营助手 v1.0.4
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -37,7 +37,7 @@ playwright-cli run-code --filename <script>
 若 `playwright-cli` 不存在：`npm install -g @playwright/cli@latest`。
 登录态由持久化 profile 保留，用户登录一次后可直接继续。**永远不要索取、代填、记录账号密码。**
 
-## 二、六条铁律（违反必然做错）
+## 二、七条铁律（违反必然做错）
 
 1. **计费设置整块只读。** 页头出现「提示：当前版本无法修改区域方案/会员等级…」就是版本锁定，
    不要再反复点保存，那不是操作失败。改价需走平台（旺云）侧。判断依据见 `references/03-计费与会员.md`。
@@ -46,11 +46,14 @@ playwright-cli run-code --filename <script>
    改 `默认吧台库存 +N` / `未出货 −N`，不能用补货。详见 `references/08-补货上架.md`。
 3. **裸 `fetch` 业务接口返回 406 非法访问。** 要拿接口数据，只能用 `page.waitForResponse`
    截页面自己发出的请求，不能自己拼请求。
-4. **Element UI 的 tab 会残留 DOM。** 切区域/切档位后等 1s 以上，并用
+4. **控件库是 Vue 3 + Element Plus，不是 Element UI。** 弹窗容器只有 `.el-dialog`（**没有 `.el-dialog__wrapper`**），
+   可见性一律用 `offsetParent !== null`；下拉选项要只取当前可见的 `.el-select-dropdown`，别全页抓。
+   详见 `references/05-员工权限.md` §十三。
+5. **Element Plus 的 tab 会残留 DOM。** 切区域/切档位后等 1s 以上，并用
    `getBoundingClientRect().height > 0` 判断可见，否则读到上一个标签页的数值。
-5. **路由必须写到三级。** 二级路径直接访问会回落到默认页
+6. **路由必须写到三级。** 二级路径直接访问会回落到默认页
    （如 `/admin/systemSetting/deviceManagement` 会回到场所管理）。
-6. **写操作先 dry-run 报数。** 库存、价格、发券、发礼包这类改动，先跑脚本的 DRY_RUN 模式把
+7. **写操作先 dry-run 报数。** 库存、价格、发券、发礼包这类改动，先跑脚本的 DRY_RUN 模式把
    「改前 → 改后」报给用户确认，再落库。
 
 ## 三、路由表：按问题找文档
@@ -132,6 +135,7 @@ playwright-cli run-code --filename <script>
 | `scripts/add-goods.js` | 批量新增商品主档（DRY_RUN 默认开） | 默认否 |
 | `scripts/toggle-seat.js` | 按机位开关占座/订座（DRY_RUN 默认开） | 默认否 |
 | `scripts/toggle-voice.js` | 按事件开关语音播报（通道+开关，DRY_RUN 默认开） | 默认否 |
+| `scripts/add-departments.js` | 批量补建部门（已存在则跳过，DRY_RUN 默认关） | 是 |
 | `scripts/sweep-pages.js` | 全站 129 页盘点：行数/空状态/按钮/只读标记（改 START 分批） | 否 |
 
 脚本里的区域列表、商品名、数量都是**示例值**，跑之前按当次需求改。
