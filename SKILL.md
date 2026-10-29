@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.0.0
+version: 1.0.1
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.0
+# 旺云商户端运营助手 v1.0.1
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -66,6 +66,7 @@ playwright-cli run-code --filename <script>
 | 上架商品、改价改库存、团购核销、退款 | `references/07-商品销售.md` |
 | 「上架到吧台」怎么做才对 | `references/08-补货上架.md` |
 | 门店资料、自助开关、支付方式、短信、提现 | `references/09-门店资料.md` |
+| 让某一台机子不参与占座 / 订座 | `references/09-门店资料.md` §6.2（APP机位图，唯一入口） |
 | 新增商品主档、批量导入的列格式 | `references/10-上架路径.md` |
 
 **不要一次性读全部文档。** 先按上表定位到 1-2 份，读它，再动手。
@@ -96,6 +97,15 @@ playwright-cli run-code --filename <script>
 销售管理 → 商超管理 → 基础管理 → 商品名称 → 添加，弹窗只有「商品名称（必填）」+「图片（≤500KB）」。
 按钮有 `取消 / 继续添加 / 确认`。用 `scripts/add-goods.js`（默认 DRY_RUN）。
 
+### D. 让某台机子不参与占座 / 订座
+
+服务管理 → 机位图 → **APP机位图** → 滚到「网吧占座限制」或「网吧订座限制」→
+在**右框（参与）**里勾选机位 → 点中间的**左箭头**把它移到左框 → 点该区块的「保 存」→ 刷新看计数。
+
+**右框=参与、左框=不参与，语义是反的。** 页面上有两个「保 存」，第一个属订座、第二个属占座，点错就保存错区块。
+这是全站唯一能按单台机位开关占座/订座的地方，订座配置页只管全局策略。
+用 `scripts/toggle-seat.js`。
+
 ## 五、脚本
 
 | 脚本 | 用途 | 会改数据吗 |
@@ -105,6 +115,7 @@ playwright-cli run-code --filename <script>
 | `scripts/crawl-dialogs.js` | 打开新增弹窗抓表单字段（只开不存） | 否 |
 | `scripts/replenish.js` | 纯上架到吧台（DRY_RUN 默认开） | 默认否 |
 | `scripts/add-goods.js` | 批量新增商品主档（DRY_RUN 默认开） | 默认否 |
+| `scripts/toggle-seat.js` | 按机位开关占座/订座（DRY_RUN 默认开） | 默认否 |
 
 脚本里的区域列表、商品名、数量都是**示例值**，跑之前按当次需求改。
 
@@ -128,5 +139,8 @@ playwright-cli run-code --filename <script>
 
 ## 八、版本
 
-v1.0.0 · 数据基准日 2026-10-29 · 门店「演示门店」placeCode 00000000000000。
+v1.0.1 · 数据基准日 2026-10-29 · 门店「演示门店」placeCode 00000000000000。
 换门店/换账号后，费率与终端必须先重新实测，`references/04-区域费率.md` 里的数字只属于该门店。
+
+v1.0.1 增补：按机位开关占座/订座（APP机位图穿梭框）的完整路径与坑，见 `references/09-门店资料.md` §6.2
+与 `scripts/toggle-seat.js`。
