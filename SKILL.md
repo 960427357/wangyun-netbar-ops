@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.0.1
+version: 1.0.2
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.0.1
+# 旺云商户端运营助手 v1.0.2
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -67,6 +67,7 @@ playwright-cli run-code --filename <script>
 | 「上架到吧台」怎么做才对 | `references/08-补货上架.md` |
 | 门店资料、自助开关、支付方式、短信、提现 | `references/09-门店资料.md` |
 | 让某一台机子不参与占座 / 订座 | `references/09-门店资料.md` §6.2（APP机位图，唯一入口） |
+| 开关某类语音播报（客户呼叫网管等） | `references/09-门店资料.md` §6.1.2（网吧语音管理） |
 | 新增商品主档、批量导入的列格式 | `references/10-上架路径.md` |
 
 **不要一次性读全部文档。** 先按上表定位到 1-2 份，读它，再动手。
@@ -106,6 +107,19 @@ playwright-cli run-code --filename <script>
 这是全站唯一能按单台机位开关占座/订座的地方，订座配置页只管全局策略。
 用 `scripts/toggle-seat.js`。
 
+### E. 打开 / 关闭某类语音播报（含「呼叫网管」）
+
+服务管理 → **语音播报** → **网吧语音管理**。8 张卡片，每张卡片要出声必须**两个控件同时满足**：
+卡片内「语音播报通道」的 `旺云控制台` **已勾** + 表格「开关」列 **开**，缺一不响。
+
+页面底部**只有一个「保 存」，一次提交全部 8 张卡片**，点前必须整页复核。
+「客户呼叫网管播报」打不开的典型形态：表格显示「暂无数据」（其实是首屏未加载完，等 3-4 秒）、
+通道未勾、开关为关。排查要连 `专呼语音` 页一起看——那页管「呼叫功能能否用、叫谁」，
+这页管「叫了之后用哪台语音端、什么提示音、播几次」，只开一个现场不会响。
+
+语音端（终端）本身在 **全局语音配置** 页登记（本店仅「旺云控制台 / 192.168.1.247」，无启用开关，
+能否出声取决于那台 PC 上语音包是否在跑）。用 `scripts/toggle-voice.js`。
+
 ## 五、脚本
 
 | 脚本 | 用途 | 会改数据吗 |
@@ -116,6 +130,7 @@ playwright-cli run-code --filename <script>
 | `scripts/replenish.js` | 纯上架到吧台（DRY_RUN 默认开） | 默认否 |
 | `scripts/add-goods.js` | 批量新增商品主档（DRY_RUN 默认开） | 默认否 |
 | `scripts/toggle-seat.js` | 按机位开关占座/订座（DRY_RUN 默认开） | 默认否 |
+| `scripts/toggle-voice.js` | 按事件开关语音播报（通道+开关，DRY_RUN 默认开） | 默认否 |
 
 脚本里的区域列表、商品名、数量都是**示例值**，跑之前按当次需求改。
 
@@ -144,3 +159,7 @@ v1.0.1 · 数据基准日 2026-10-29 · 门店「演示门店」placeCode 000000
 
 v1.0.1 增补：按机位开关占座/订座（APP机位图穿梭框）的完整路径与坑，见 `references/09-门店资料.md` §6.2
 与 `scripts/toggle-seat.js`。
+
+v1.0.2 增补：语音播报五个页签的分工、网吧语音管理 8 张卡片的双控件语义（通道勾选 + 开关）、
+整页唯一保存按钮的全局提交风险、「客户呼叫网管播报」打不开的形态与排查顺序，
+见 `references/09-门店资料.md` §6.1 与 `scripts/toggle-voice.js`。

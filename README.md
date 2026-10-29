@@ -72,7 +72,8 @@ wangyun-netbar-ops/
     ├── crawl-dialogs.js        打开新增弹窗抓表单字段（只开不存）
     ├── replenish.js            纯上架到吧台（DRY_RUN 默认开）
     ├── add-goods.js            批量新增商品主档（DRY_RUN 默认开）
-    └── toggle-seat.js          按机位开关占座/订座（DRY_RUN 默认开）
+    ├── toggle-seat.js          按机位开关占座/订座（DRY_RUN 默认开）
+    └── toggle-voice.js         按事件开关语音播报（DRY_RUN 默认开）
 ```
 
 ## 会用到的三条路
@@ -94,7 +95,7 @@ wangyun-netbar-ops/
 
 ## 数据基准
 
-v1.0.0 · 2026-10-29 实测 · 门店「演示门店」placeCode `00000000000000`。
+v1.0.2 · 2026-10-29 实测 · 门店「演示门店」placeCode `00000000000000`。
 **换门店、换账号后费率与终端必须重新实测**，`04-区域费率.md` 里的数字只属于该门店。
 
 ## License
