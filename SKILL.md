@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.0.4
+version: 1.0.5
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.0.4
+# 旺云商户端运营助手 v1.0.5
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -36,6 +36,8 @@ playwright-cli run-code --filename <script>
 
 若 `playwright-cli` 不存在：`npm install -g @playwright/cli@latest`。
 登录态由持久化 profile 保留，用户登录一次后可直接继续。**永远不要索取、代填、记录账号密码。**
+
+**本店约定（2026-10-30 起）：团购券库存一律填 `9999`，不要自拟数字。**
 
 ## 二、七条铁律（违反必然做错）
 
@@ -67,6 +69,7 @@ playwright-cli run-code --filename <script>
 | 加员工、配角色权限、算提成绩效 | `references/05-员工权限.md` |
 | 发券、拉新、充值赠送、抽奖签到礼包 | `references/06-营销配置.md` |
 | 上架商品、改价改库存、团购核销、退款 | `references/07-商品销售.md` |
+| 做团购券（建套餐 → 上架到旺云商城/美团） | `references/12-团购上架.md` |
 | 「上架到吧台」怎么做才对 | `references/08-补货上架.md` |
 | 门店资料、自助开关、支付方式、短信、提现 | `references/09-门店资料.md` |
 | 让某一台机子不参与占座 / 订座 | `references/09-门店资料.md` §6.2（APP机位图，唯一入口） |
@@ -124,6 +127,19 @@ playwright-cli run-code --filename <script>
 语音端（终端）本身在 **全局语音配置** 页登记（本店仅「旺云控制台 / 192.168.1.247」，无启用开关，
 能否出声取决于那台 PC 上语音包是否在跑）。用 `scripts/toggle-voice.js`。
 
+### F. 做一个团购券并上架（69 元享 120 网费 这类）
+
+**顺序不能反：先建套餐，再上架。**
+
+1. 团购管理 → **团购套餐** → 新 增 → 填「套餐名称」（把价格写进名字）+ 传图 +
+   现金网费 `实付` + 赠送网费 `差价`（69 + 51 = 120）→ 保存。**不要点「选择核销套餐」等 4 个按钮**。
+2. 团购管理 → **上架管理** → 目标行「上/下架」→ 点「旺云商城」行的「上 架」→ 抽屉里填
+   门市价格 `120` / 团购价格 `69` / 库存 **`9999`** / 销售时间保持「不限制」。
+3. 抽屉底部「上 架」→ 确认框点 **「提交」**（不是「确定」，这是最常见的"点了没反应"）。
+4. 复核：列表「销售平台」出现 `旺云商城 已上架 团购价：￥69`，抓包见 `listInfo/add` 200。
+
+平台行列表**偶尔空白**，关弹窗整页重载再试，最多 4 次。用 `scripts/publish-groupon.js`。
+
 ## 五、脚本
 
 | 脚本 | 用途 | 会改数据吗 |
@@ -136,6 +152,7 @@ playwright-cli run-code --filename <script>
 | `scripts/toggle-seat.js` | 按机位开关占座/订座（DRY_RUN 默认开） | 默认否 |
 | `scripts/toggle-voice.js` | 按事件开关语音播报（通道+开关，DRY_RUN 默认开） | 默认否 |
 | `scripts/add-departments.js` | 批量补建部门（已存在则跳过，DRY_RUN 默认关） | 是 |
+| `scripts/publish-groupon.js` | 团购套餐上架到旺云商城/美团（含平台空表重试） | 是 |
 | `scripts/sweep-pages.js` | 全站 129 页盘点：行数/空状态/按钮/只读标记（改 START 分批） | 否 |
 
 脚本里的区域列表、商品名、数量都是**示例值**，跑之前按当次需求改。
@@ -173,3 +190,10 @@ v1.0.2 增补：语音播报五个页签的分工、网吧语音管理 8 张卡�
 v1.0.3 增补：全站 129 个叶子页的盘点结果——6 个只读页、约 40 个空壳页、按影响面排序的待配清单，
 以及两个易误判点（会员管理默认不加载且每天限查 5 次、表单型页面行数恒为 0），
 见 `references/11-全站盘点.md` 与 `scripts/sweep-pages.js`。
+
+v1.0.4 增补：部门管理补建（5 个部门实建并联动验证）、员工字段级修正（Element Plus 而非 Element UI、
+必填实为 手机号/昵称/岗位/姓名、角色是 7 项多选），见 `references/05-员工权限.md`。
+
+v1.0.5 增补：团购券完整链路（建套餐 → 上架旺云商城），含平台空表须重载重试、
+确认框按钮是「提交」不是「确定」、门市价/团购价/库存语义，以及本店团购库存一律 9999 的约定，
+见 `references/12-团购上架.md` 与 `scripts/publish-groupon.js`。
