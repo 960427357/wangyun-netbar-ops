@@ -76,6 +76,7 @@ wangyun-netbar-ops/
     ├── toggle-voice.js         按事件开关语音播报（DRY_RUN 默认开）
     ├── add-departments.js      批量补建部门（已存在则跳过）
     ├── publish-groupon.js      团购券上架（含平台空表重试）
+    ├── create-publish-groupon.js 团购券一条龙：建套餐→上架→复核
     └── sweep-pages.js          全站 129 页盘点（只读，改 START 分批）
 ```
 
@@ -105,7 +106,7 @@ wangyun-netbar-ops/
 
 ## 数据基准
 
-v1.0.6 · 2026-10-30 实测 · 门店「演示门店」placeCode `00000000000000`。
+v1.0.7 · 2026-10-30 实测 · 门店「演示门店」placeCode `00000000000000`。
 **换门店、换账号后费率与终端必须重新实测**，`04-区域费率.md` 里的数字只属于该门店。
 
 ## License

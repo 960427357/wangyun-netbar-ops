@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.0.6
+version: 1.0.7
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.0.6
+# 旺云商户端运营助手 v1.0.7
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -27,19 +27,47 @@ visibility: "public"
 # 1. 保证 playwright-cli 在 PATH
 export PATH="$PATH:$APPDATA/npm"
 
-# 2. 有头 + 持久化打开（必须让用户自己登录，不要经手密码）
-playwright-cli open https://wyb.5188cloud.net/login --browser=msedge --headed --persistent
+# 2. 用「后台常驻任务」把浏览器控住（关键，见下面的原因）
+#    这是一条后台命令：open 完让进程挂着不退出
+playwright-cli open --browser=msedge --headed --persistent; sleep 3600
 
-# 3. 之后所有脚本都这样跑
+# 3. 之后所有脚本直接跑，**不要再 open**
 playwright-cli run-code --filename <script>
 ```
+
+### 为什么必须后台常驻（不然每步都白等一轮）
+
+**每条 shell 命令结束时，它派生的子进程会被一起清掉，浏览器也在其中。**
+所以「先 open，再 run-code」这种一条命令一步的写法，等于每步都：重开浏览器 → 重新加载首页 →
+必要时重登录，一步白扔十几秒，多步任务越做越慢。
+
+正确做法：用**一条后台命令**（`run_in_background`）把 `open` 挂住，浏览器就活在那个进程里；
+之后每次 `run-code` 都是**同一个窗口、同一个登录态、同一个已加载页面**，直接接着干。
+
+判断有没有生效：第二条命令不开 `open` 也能跑通，就说明会话还在；报
+`Browser 'default' is not open` 说明控制进程已经退出，重新起一次后台任务即可。
+
+### 少整页重载
+
+同一模块内换页，用页内路由跳转，比 `page.goto` 快一半以上：
+
+```js
+await page.evaluate(p => {
+  history.pushState({}, '', p);
+  window.dispatchEvent(new PopStateEvent('popstate', {state: {}}));
+}, '/marketManage/groupManagement/publish');
+await page.waitForTimeout(3000);   // 页面会自己渲染出来，不用 reload
+```
+
+同一条流水线里的多步操作，**尽量写进同一个脚本**（例如 `scripts/create-publish-groupon.js`
+把「建套餐 + 上架 + 复核」一次跑完），不要拆成三个脚本来回切。
 
 若 `playwright-cli` 不存在：`npm install -g @playwright/cli@latest`。
 登录态由持久化 profile 保留，用户登录一次后可直接继续。**永远不要索取、代填、记录账号密码。**
 
 **本店约定（2026-10-30 起）：团购券库存一律填 `9999`，不要自拟数字。**
 
-## 二、七条铁律（违反必然做错）
+## 二、八条铁律（违反必然做错）
 
 1. **计费设置整块只读。** 页头出现「提示：当前版本无法修改区域方案/会员等级…」就是版本锁定，
    不要再反复点保存，那不是操作失败。改价需走平台（旺云）侧。判断依据见 `references/03-计费与会员.md`。
@@ -55,7 +83,9 @@ playwright-cli run-code --filename <script>
    `getBoundingClientRect().height > 0` 判断可见，否则读到上一个标签页的数值。
 6. **路由必须写到三级。** 二级路径直接访问会回落到默认页
    （如 `/admin/systemSetting/deviceManagement` 会回到场所管理）。
-7. **写操作先 dry-run 报数。** 库存、价格、发券、发礼包这类改动，先跑脚本的 DRY_RUN 模式把
+7. **一步一 open 等于步步白等。** 浏览器要用后台常驻任务挂住（§一），后续命令直接复用；
+   同一条流水线的多步操作合并到一个脚本里。已见过反例：建券、上架各开一次浏览器，多花一倍时间。
+8. **写操作先 dry-run 报数。** 库存、价格、发券、发礼包这类改动，先跑脚本的 DRY_RUN 模式把
    「改前 → 改后」报给用户确认，再落库。
 
 ## 三、路由表：按问题找文档
@@ -154,6 +184,7 @@ playwright-cli run-code --filename <script>
 | `scripts/toggle-voice.js` | 按事件开关语音播报（通道+开关，DRY_RUN 默认开） | 默认否 |
 | `scripts/add-departments.js` | 批量补建部门（已存在则跳过，DRY_RUN 默认关） | 是 |
 | `scripts/publish-groupon.js` | 团购套餐上架到旺云商城/美团（含平台空表重试） | 是 |
+| `scripts/create-publish-groupon.js` | 团购券一条龙：建套餐 → 上架 → 复核，一次跑完 | 是 |
 | `scripts/sweep-pages.js` | 全站 129 页盘点：行数/空状态/按钮/只读标记（改 START 分批） | 否 |
 
 脚本里的区域列表、商品名、数量都是**示例值**，跑之前按当次需求改。
@@ -202,3 +233,7 @@ v1.0.5 增补：团购券完整链路（建套餐 → 上架旺云商城），�
 v1.0.6 增补：团购新增弹窗的**全量字段**（使用限制=适用人群、单人核销次数、有效期设置、
 使用时间限制、宣传图片为必填），并连做第二张券「9.9元享30元网费 / 新会员」验证流程可复用，
 见 `references/12-团购上架.md`。
+
+v1.0.7 增补（**提速**）：浏览器改为后台常驻任务挂住，后续命令复用同一会话，不再每步重开；
+同模块换页改用页内路由跳转；新增 `scripts/create-publish-groupon.js` 把建券→上架→复核合并成一次执行。
+涨到八条铁律，新增第 7 条「一步一 open 等于步步白等」。见 §一。
