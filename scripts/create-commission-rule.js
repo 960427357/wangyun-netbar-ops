@@ -6,19 +6,21 @@ async page => {
   // 注意：提交前必须在员工激励/当前规则页，且已登录。
   // ============================================================
   const CFG = {
-    name: '单笔充值阶梯奖励',
-    scene: '会员充值',            // 商品推销 / 会员拉新 / 会员充值 / 旺云团购
-    way: '单笔充值提成',           // 仅「会员充值」有此项
+    name: '商品推销10%提成',
+    scene: '商品推销',            // 商品推销 / 会员拉新 / 会员充值 / 旺云团购
+    way: '销售额提成',             // 固定提成 / 销售额提成 / 销售总额提成；会员充值多「单笔充值提成」
     cycle: '自然月',              // 每日 / 自然月 / 有效期
     // 生效时间必须 **晚于当前时刻**，填当天 00:00 会被拒：「生效时间不能小于当前时间」
-    startAt: '2026-10-31 00:00:00',
-    endAt: '2026-11-30 23:59:59',
+    startAt: '2026-10-31 00:10:00',
+    endAt: '2029-12-01 23:59:59',
     posts: ['收银员'],             // 管理员 / 保洁员 / 维修工 / 收银员
-    // 单笔充值提成：单次充值满 from 元，提成 fixed 元（命中最高档，不累加）
+    // 参与范围：商品推销选 全店商品 / 指定分类 / 指定商品；旺云团购选 全部套餐 / 指定套餐
+    // 会员充值场景没有这个字段，填 null
+    scope: '全店商品',
+    // 阶梯：第二个数是「提成%」（销售额/销售总额提成）或「提成元」（单笔充值提成）
+    // 销售额提成 = 分段累进；销售总额提成 = 够档整笔乘
     steps: [
-      {from: 200, fixed: 2},
-      {from: 300, fixed: 3},
-      {from: 500, fixed: 5},
+      {from: 0, pct: 10},
     ],
   };
   // 脚本跑在浏览器里，没有 process.env；改这一行决定是否落库（默认 false = 只报不存）
@@ -104,7 +106,7 @@ async page => {
   }
   if (rows < CFG.steps.length) return `FAIL: 阶梯行只加到 ${rows} 条`;
 
-  // ---------- 4. 填阶梯（每行 2 个数字：满 X 元 / 提成 Y 元） ----------
+  // ---------- 4. 填阶梯（每行 2 个数字：门槛 X 元 / 提成 Y（% 或 元）） ----------
   const filled = await page.evaluate(steps => {
     const d = [...document.querySelectorAll('.el-dialog')].filter(x => x.offsetParent !== null).pop();
     const fi = [...d.querySelectorAll('.el-form-item')].find(f =>
@@ -121,13 +123,45 @@ async page => {
     steps.forEach((s, i) => {
       const ins = [...items[i].querySelectorAll('input')];
       if (ins.length < 2) { out.push({err: `第${i + 1}行输入框不足`}); return; }
+      const v2 = s.fixed !== undefined ? s.fixed : s.pct;
       setNum(ins[0], s.from);
-      setNum(ins[1], s.fixed);
-      out.push({row: i + 1, from: ins[0].value, fixed: ins[1].value});
+      setNum(ins[1], v2);
+      out.push({row: i + 1, from: ins[0].value, rate: ins[1].value});
     });
     return out;
   }, CFG.steps);
   log.push(`阶梯: ${JSON.stringify(filled)}`);
+
+  // ---------- 4.5 参与商品 / 团购套餐（只有这两个场景有） ----------
+  if (CFG.scope) {
+    const labelOf = `参与商品`;   // 商品推销
+    const opened = await page.evaluate(lb => {
+      const d = [...document.querySelectorAll('.el-dialog')].filter(x => x.offsetParent !== null).pop();
+      const fi = [...d.querySelectorAll('.el-form-item')].find(f =>
+        ((f.querySelector('.el-form-item__label') || {}).innerText || '')
+          .replace(/\s+/g, '').replace(/:$/, '').startsWith(lb));
+      if (!fi) return false;
+      const sel = fi.querySelector('.el-select');
+      if (!sel) return false;
+      const inp = sel.querySelector('input');
+      (inp || sel).click();
+      return true;
+    }, labelOf);
+    await page.waitForTimeout(900);
+    const picked = await page.evaluate(t => {
+      const dds = [...document.querySelectorAll('.el-select-dropdown')].filter(x => x.offsetParent !== null);
+      const dd = dds[dds.length - 1];
+      if (!dd) return null;
+      const opts = [...dd.querySelectorAll('.el-select-dropdown__item')].map(i => i.innerText.trim());
+      const it = [...dd.querySelectorAll('.el-select-dropdown__item')].find(i => i.innerText.trim() === t);
+      if (!it) return {opts, clicked: false};
+      it.click();
+      return {opts, clicked: true};
+    }, CFG.scope);
+    await page.waitForTimeout(900);
+    log.push(`范围: ${JSON.stringify({opened, picked})}`);
+    if (!opened || !picked || !picked.clicked) return `FAIL: 参与范围没选上 ${CFG.scope} / ${JSON.stringify(picked)}`;
+  }
 
   // ---------- 5. 参与岗位 ----------
   const posts = await page.evaluate(list => {
