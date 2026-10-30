@@ -1,16 +1,22 @@
 async page => {
   // ============================================================
-  // 员工激励 · 只读审计
-  // 读出当前规则 + 历史规则，展开每条阶梯，估算提成成本。
-  // 用途：发现「50% 这种明显配错」的规则。
+  // 员工激励 · 只读审计（结构体检，不做数值告警）
+  // 读出当前规则 + 历史规则，展开每条阶梯，并做「结构」诊断。
+  //
+  // ⚠️ 环境提醒：从当前环境读到的价格/比例/金额可能来自**测试场所**，
+  //    一律视为占位符。本脚本因此**不判断数值大小**（不因 50% 就报警），
+  //    只判断结构是否可被套利：起征点、周期×阶梯、范围、岗位、拆单。
+  //    要算真实成本，必须由使用者传入真实毛利率与真实日销基线。
+  //
   // 全程只读，不点保存、不点作废。
-  // 改 ASSUME 调整估算假设。
+  // 改 ASSUME 调整估算假设（默认值仅用于演示，不是真实经营数据）。
   // 用法: playwright-cli run-code --filename scripts/audit-commission.js
   // ============================================================
   const ASSUME = {
-    goodsDaily: 500,        // 假设：吧台商品日销售额（元）
-    rechargeDaily: 1000,    // 假设：会员充值日金额（元）
+    goodsDaily: 500,        // 仅占位：吧台商品日销售额（元），真实环境请替换
+    rechargeDaily: 1000,    // 仅占位：会员充值日金额（元），真实环境请替换
     days: 30,               // 月天数
+    grossMarginPct: null,   // 真实毛利率(%)。留 null = 无法判断「比例是否吃掉毛利」，脚本会明确说明
   };
 
   const LIST = 'https://wyb.5188cloud.net/staffManage/staffCommission/currRules';
@@ -162,22 +168,50 @@ async page => {
   const currR = curr.map(inspect);
   const histR = hist.map(inspect);
 
-  // ---- 风险标记 ----
+  // ---- 结构体检（不看数值大小，只看能不能被套利）----
   const flags = [];
-  currR.forEach(r => {
-    if (r.algorithm === 'progressive' || r.algorithm === 'tiered') {
-      const maxPct = Math.max(...r.steps.map(s => s.pct || 0));
-      if (maxPct >= 30) flags.push(`【高风险】当前规则「${r.name}」最高提成 ${maxPct}%，按假设 ${r.assumeAmount} 元/天估算，日发 ${r.estPerDay} 元、月发 ${r.estPerMonth} 元`);
-      if (r.steps.length && Math.min(...r.steps.map(s => s.from)) <= 1) flags.push(`【注意】当前规则「${r.name}」第一档门槛只有 ${Math.min(...r.steps.map(s => s.from))} 元，等于没有起征点`);
+  const structuralChecks = r => {
+    const out = [];
+    const steps = r.steps || [];
+
+    // 1) 起征点：第一档门槛 ≤1 元 = 等于没有起征点（与比例无关，是结构问题）
+    const firstFrom = steps.length ? Math.min(...steps.map(s => s.from)) : null;
+    if (firstFrom !== null && firstFrom <= 1) out.push('起征点=1元（等于无起征点，任何金额都进提成）');
+
+    // 2) 周期 × 阶梯：每日 + 多档阶梯 → 阶梯永远爬不上去
+    if (steps.length > 1 && /每日/.test(r.cycle || '')) out.push('周期=每日且配了多档阶梯（每天清零，第二档起永远用不上）');
+
+    // 3) 范围：全店商品 → 成本无法按毛利分类控制
+    if (/全店商品/.test(r.scope || '')) out.push('范围=全店商品（无法按毛利分类控成本）');
+
+    // 4) 岗位：单一收银员 → 自己卖自己提，无二次校验
+    if (/收银员/.test(r.staff || '') && !/(店长|值班|经理)/.test(r.staff || '')) out.push('岗位仅收银员（无第二人校验，配合全店范围难审计）');
+
+    // 5) 单笔类：可拆单套档
+    if (r.algorithm === 'perRecharge') out.push('单笔充值提成（可拆单套档）');
+
+    // 6) 比例 vs 毛利：只有给了真实毛利率才判
+    if (ASSUME.grossMarginPct != null && steps.length) {
+      const maxPct = Math.max(...steps.map(s => s.pct || 0));
+      if (maxPct >= ASSUME.grossMarginPct) out.push(`最高比例 ${maxPct}% ≥ 毛利率 ${ASSUME.grossMarginPct}%（卖得多亏得多）`);
     }
-    if (r.algorithm === 'perRecharge') flags.push(`【套利风险】当前规则「${r.name}」是单笔充值提成，可按单笔拆分套档`);
+    return out;
+  };
+
+  currR.forEach(r => {
+    const issues = structuralChecks(r);
+    r.structuralIssues = issues;
+    if (issues.length) flags.push(`【结构】「${r.name}」：${issues.join('；')}`);
   });
+  if (ASSUME.grossMarginPct == null) {
+    flags.push('【未判】未提供真实毛利率（ASSUME.grossMarginPct=null），"比例是否吃掉毛利"这一项无法判断，请勿据此下结论');
+  }
 
   return JSON.stringify({
     assume: ASSUME,
     currentRules: currR,
     historyRules: histR,
     risks: flags,
-    note: '本次为只读审计，未做任何修改。estPerDay/estPerMonth 是基于 ASSUME 的线性外推，不是真实发生额，真实数据看「提成结算」页。',
+    note: '本次为只读审计，未做任何修改。risks 里只列「结构」问题，不因数值大就报警。estPerDay/estPerMonth 是基于 ASSUME 的线性外推，ASSUME 可能是占位值（测试环境），真实发生额请看「提成结算」页；真实门店务必先填 grossMarginPct 与真实日销基线。',
   }, null, 2);
 }
