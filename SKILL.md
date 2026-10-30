@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.0.7
+version: 1.0.8
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.0.7
+# 旺云商户端运营助手 v1.0.8
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -168,6 +168,8 @@ await page.waitForTimeout(3000);   // 页面会自己渲染出来，不用 reloa
    门市价格 `120` / 团购价格 `69` / 库存 **`9999`** / 销售时间保持「不限制」。
 3. 抽屉底部「上 架」→ 确认框点 **「提交」**（不是「确定」，这是最常见的"点了没反应"）。
 4. 复核：列表「销售平台」出现 `旺云商城 已上架 团购价：￥69`，抓包见 `listInfo/add` 200。
+5. 需要首页加权就再点该行 `设为推荐` / `设为热门`（立即生效、无确认框，文案变 `取消推荐` 即成功）。
+   **点完列表会刷新、行会短暂消失 1-2 秒**，必须等行回来再做下一个动作，否则会漏点。
 
 平台行列表**偶尔空白**，关弹窗整页重载再试，最多 4 次。用 `scripts/publish-groupon.js`。
 
@@ -184,6 +186,7 @@ await page.waitForTimeout(3000);   // 页面会自己渲染出来，不用 reloa
 | `scripts/toggle-voice.js` | 按事件开关语音播报（通道+开关，DRY_RUN 默认开） | 默认否 |
 | `scripts/add-departments.js` | 批量补建部门（已存在则跳过，DRY_RUN 默认关） | 是 |
 | `scripts/publish-groupon.js` | 团购套餐上架到旺云商城/美团（含平台空表重试） | 是 |
+| `scripts/set-recommend-hot.js` | 设/取消团购套餐的推荐、热门 | 是 |
 | `scripts/create-publish-groupon.js` | 团购券一条龙：建套餐 → 上架 → 复核，一次跑完 | 是 |
 | `scripts/sweep-pages.js` | 全站 129 页盘点：行数/空状态/按钮/只读标记（改 START 分批） | 否 |
 
@@ -237,3 +240,7 @@ v1.0.6 增补：团购新增弹窗的**全量字段**（使用限制=适用人�
 v1.0.7 增补（**提速**）：浏览器改为后台常驻任务挂住，后续命令复用同一会话，不再每步重开；
 同模块换页改用页内路由跳转；新增 `scripts/create-publish-groupon.js` 把建券→上架→复核合并成一次执行。
 涨到八条铁律，新增第 7 条「一步一 open 等于步步白等」。见 §一。
+
+v1.0.8 增补：团购套餐「设为推荐 / 设为热门」两个运营位开关（立即生效、无确认框、
+点后列表整刷会让目标行短暂消失 1-2 秒，连续操作必须等行回来），见 `references/12-团购上架.md` §三之二
+与 `scripts/set-recommend-hot.js`。
