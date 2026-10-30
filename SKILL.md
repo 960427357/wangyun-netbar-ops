@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.0.8
+version: 1.0.9
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.0.8
+# 旺云商户端运营助手 v1.0.9
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -100,6 +100,7 @@ await page.waitForTimeout(3000);   // 页面会自己渲染出来，不用 reloa
 | 发券、拉新、充值赠送、抽奖签到礼包 | `references/06-营销配置.md` |
 | 上架商品、改价改库存、团购核销、退款 | `references/07-商品销售.md` |
 | 做团购券（建套餐 → 上架到旺云商城/美团） | `references/12-团购上架.md` |
+| 给会员发通知 / 做会员端宣传展示 | `references/09-门店资料.md` §6.3 |
 | 「上架到吧台」怎么做才对 | `references/08-补货上架.md` |
 | 门店资料、自助开关、支付方式、短信、提现 | `references/09-门店资料.md` |
 | 让某一台机子不参与占座 / 订座 | `references/09-门店资料.md` §6.2（APP机位图，唯一入口） |
@@ -173,6 +174,30 @@ await page.waitForTimeout(3000);   // 页面会自己渲染出来，不用 reloa
 
 平台行列表**偶尔空白**，关弹窗整页重载再试，最多 4 次。用 `scripts/publish-groupon.js`。
 
+### G. 给全体会员发通知 / 做宣传展示
+
+**先分清两个东西**：通知是**推送**（要审核、到点发），宣传是**会员端展示**（免审核、到点自动出现）。
+要触达就两个都做，只挂图就发宣传。
+
+通知：
+
+1. 服务管理 → 会员通知宣传 → **通知记录** → 新 增 → 填标题（60 字内）+ 内容 + 通知时间。
+   **没有收件人选项，默认全体会员。**
+2. 时间框是 readonly 且**点时间轴不落值**，必须去 readonly → `fill('2026-10-31 14:00')` → 回车。
+   格式 `YYYY-MM-DD HH:mm`。收起面板点弹窗标题，**别按 Esc**（会关掉整个弹窗）。
+3. 点 **`保存并提交审核`**（弹窗里的），一次到位。**行内「提交审核」会报权限不足。**
+4. 状态 `待提交 → 待审核 → 已发送`。**`待审核` 不会自己发**，必须回来看状态转成 `已发送` 才算数。
+   要撤回点行内「撤回」，会退回 `待提交`。
+
+宣传：
+
+1. 同目录 → **宣传** → 添加 → 标题 + 状态（`el-switch` 默认开）+ 展示开始/结束 + 内容。
+2. 时间是两个字段，格式要 **`YYYY-MM-DD HH:mm:ss`**（**不带秒会一失焦就被清空**）。
+3. 内容是 **Quill 富文本**（`.ql-editor`），点进去再 typing，不能 fill。
+4. 确定。宣传**没有删除**，建错只能改，先 dry-run 看清再提交。
+
+脚本：`scripts/create-notice.js`（`MODE=save|submit`）、`scripts/create-promotion.js`（`DRY_RUN` 默认开）。
+
 ## 五、脚本
 
 | 脚本 | 用途 | 会改数据吗 |
@@ -187,6 +212,8 @@ await page.waitForTimeout(3000);   // 页面会自己渲染出来，不用 reloa
 | `scripts/add-departments.js` | 批量补建部门（已存在则跳过，DRY_RUN 默认关） | 是 |
 | `scripts/publish-groupon.js` | 团购套餐上架到旺云商城/美团（含平台空表重试） | 是 |
 | `scripts/set-recommend-hot.js` | 设/取消团购套餐的推荐、热门 | 是 |
+| `scripts/create-notice.js` | 新增会员通知（MODE=save 存草稿 / submit 提交审核） | **是** |
+| `scripts/create-promotion.js` | 新增会员端宣传（展示起止时间 + 富文本） | **是** |
 | `scripts/create-publish-groupon.js` | 团购券一条龙：建套餐 → 上架 → 复核，一次跑完 | 是 |
 | `scripts/sweep-pages.js` | 全站 129 页盘点：行数/空状态/按钮/只读标记（改 START 分批） | 否 |
 
@@ -244,3 +271,9 @@ v1.0.7 增补（**提速**）：浏览器改为后台常驻任务挂住，后续
 v1.0.8 增补：团购套餐「设为推荐 / 设为热门」两个运营位开关（立即生效、无确认框、
 点后列表整刷会让目标行短暂消失 1-2 秒，连续操作必须等行回来），见 `references/12-团购上架.md` §三之二
 与 `scripts/set-recommend-hot.js`。
+
+v1.0.9 增补：会员通知与宣传全链路。通知走审核（`待提交 → 待审核 → 已发送`，
+**待审核不会自己发**，行内「提交审核」报权限不足、只能用弹窗的 `保存并提交审核`）；
+宣传免审核但**没有删除**。日期时间框 readonly 且**点时间轴不落值**，
+必须去 readonly 后打字，通知用 `HH:mm`、宣传用 `HH:mm:ss`（不带秒会被静默清空）；
+接口报文加密，不能改报文只能把界面值填对。见 `references/09-门店资料.md` §6.3。
