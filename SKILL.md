@@ -165,7 +165,7 @@ if (!shop) throw new Error('未取到场所名');   // 取不到就停，不要�
 
 **不要一次性读全部文档。** 先按上表定位到 1-2 份，读它，再动手。
 
-## 四、高频操作（A~G）
+## 四、高频操作（A~L）
 
 ### A. 查某机位多少钱 / 通宵多少
 
@@ -193,7 +193,7 @@ if (!shop) throw new Error('未取到场所名');   // 取不到就停，不要�
 
 ### D. 让某台机子不参与占座 / 订座
 
-> 如果只是想知道**占座功能开没开**（不涉及具体哪台机子）→ 别做这一节，直接看 **G**。
+> 如果只是想知道**占座功能开没开**（不涉及具体哪台机子）→ 别做这一节，直接看 **L**。
 > 这两件事在不同页面，走错一趟白花 2 分钟还会答偏。
 
 服务管理 → 机位图 → **APP机位图** → 滚到「网吧占座限制」或「网吧订座限制」→
@@ -212,37 +212,6 @@ if (!shop) throw new Error('未取到场所名');   // 取不到就停，不要�
 「客户呼叫网管播报」打不开的典型形态：表格显示「暂无数据」（其实是首屏未加载完，等 3-4 秒）、
 通道未勾、开关为关。排查要连 `专呼语音` 页一起看——那页管「呼叫功能能否用、叫谁」，
 这页管「叫了之后用哪台语音端、什么提示音、播几次」，只开一个现场不会响。
-
-### G. 查「占座功能开没开」（只读，30 秒）
-
-**这是一句话就能答完的问题，别做成一趟探索。** 位置：系统设置 → 网吧配置 → 订座配置
-（`/admin/systemSetting/netbarConfig/orderSeat`）→ 页面上**第 1 个开关**「是否开启占座/订座功能」。
-
-```js
-await page.goto('https://wyb.5188cloud.net/admin/systemSetting/netbarConfig/orderSeat',
-  {waitUntil: 'domcontentloaded'});
-await page.waitForTimeout(5000);          // 首屏 3-4 秒
-const on = await page.evaluate(() =>
-  document.querySelectorAll('.el-switch')[0]
-    .querySelector('.el-switch__input').getAttribute('aria-checked') === 'true');
-// on === true → 占座功能已开启，到此为止
-```
-
-🔴 **四个必记的点**：
-
-1. **「占座功能开没开」≠「哪台机位参与占座」，这是两个页面。**
-   前者在本页一个总开关；后者在 APP机位图穿梭框（操作 D）。只问开没开就**只读这个开关**，
-   去翻机位名单等于答错题——2026-10-31 实测因为混在一起回答被用户当场纠正。
-2. **开关本体没有文字**，`innerText` 恒为空串，只能读 `.el-switch__input` 的 `aria-checked`。
-   标签「是否开启占座/订座功能：」在开关左边的兄弟节点，不在里面。
-3. **总开关是占座+订座共用一个**，没有分开的两个开关。
-   所以 `true` 只证明「功能开着」；**「客人端能不能真订到」还要看订座右框有没有机位**
-   （实测有门店右框 `0/0`，开关开着但订座完全不出现）。被追问时再去操作 D 看名单，两件事分开答。
-4. 整页 4 个 `.el-switch` 顺序固定：`总开关 / 能否取消订单 / 开机后不关机 / 占座接单`；
-   22 个数字框 + 4 个 radio-checkbox（「会员」恒勾 disabled）。一次读全用
-   `scripts/read-seat-config.js`，只读机位名单用 `scripts/read-seat-scope.js`。
-
-字段全表、取整规则、实测基线见 `references/09-门店资料.md` §3.4 与 §3.4.1。
 
 语音端（终端）本身在 **全局语音配置** 页登记（本店仅「旺云控制台 / 192.168.1.247」，无启用开关，
 能否出声取决于那台 PC 上语音包是否在跑）。用 `scripts/toggle-voice.js`。
@@ -383,6 +352,38 @@ const on = await page.evaluate(() =>
 > ③ 换购单的 `saleQty` **有时记 0**（`售0 额5.0 换购1`），销量榜要按 `saleQty+hgNum` 算。
 
 一键脚本：`scripts/read-handover.js`（只读）。详见 `references/16-交接班数据字典.md`。
+
+
+### L. 查「占座功能开没开」（只读，30 秒）
+
+**这是一句话就能答完的问题，别做成一趟探索。** 位置：系统设置 → 网吧配置 → 订座配置
+（`/admin/systemSetting/netbarConfig/orderSeat`）→ 页面上**第 1 个开关**「是否开启占座/订座功能」。
+
+```js
+await page.goto('https://wyb.5188cloud.net/admin/systemSetting/netbarConfig/orderSeat',
+  {waitUntil: 'domcontentloaded'});
+await page.waitForTimeout(5000);          // 首屏 3-4 秒
+const on = await page.evaluate(() =>
+  document.querySelectorAll('.el-switch')[0]
+    .querySelector('.el-switch__input').getAttribute('aria-checked') === 'true');
+// on === true → 占座功能已开启，到此为止
+```
+
+🔴 **四个必记的点**：
+
+1. **「占座功能开没开」≠「哪台机位参与占座」，这是两个页面。**
+   前者在本页一个总开关；后者在 APP机位图穿梭框（操作 D）。只问开没开就**只读这个开关**，
+   去翻机位名单等于答错题——2026-10-31 实测因为混在一起回答被用户当场纠正。
+2. **开关本体没有文字**，`innerText` 恒为空串，只能读 `.el-switch__input` 的 `aria-checked`。
+   标签「是否开启占座/订座功能：」在开关左边的兄弟节点，不在里面。
+3. **总开关是占座+订座共用一个**，没有分开的两个开关。
+   所以 `true` 只证明「功能开着」；**「客人端能不能真订到」还要看订座右框有没有机位**
+   （实测有门店右框 `0/0`，开关开着但订座完全不出现）。被追问时再去操作 D 看名单，两件事分开答。
+4. 整页 4 个 `.el-switch` 顺序固定：`总开关 / 能否取消订单 / 开机后不关机 / 占座接单`；
+   22 个数字框 + 4 个 radio-checkbox（「会员」恒勾 disabled）。一次读全用
+   `scripts/read-seat-config.js`，只读机位名单用 `scripts/read-seat-scope.js`。
+
+字段全表、取整规则、实测基线见 `references/09-门店资料.md` §3.4 与 §3.4.1。
 
 ## 五、脚本
 
