@@ -1,6 +1,10 @@
 /**
  * 只读：APP机位图里「网吧占座限制 / 网吧订座限制」的参与名单
  * 不改任何值、不点保存
+ *
+ * ⭐ 这是占座/订座的「闸门」：右框（参与）为空 ⇒ 该功能对客完全不生效，
+ *    订座配置页里的参数一个都用不上（即使总开关是开的）。
+ *    占座与订座各自一套名单，互不影响。
  */
 async page => {
   await page.goto('https://wyb.5188cloud.net/serviceManage/netbarSite/bigScreen',
@@ -34,5 +38,13 @@ async page => {
     return blocks;
   });
 
-  return JSON.stringify(out, null, 2);
+  const verdict = out.map(b => {
+    const key = b.title.includes('占座') ? '占座' : '订座';
+    const n = b.右.length;
+    return n > 0
+      ? `${key}：生效中（参与 ${n} 台）`
+      : `${key}：**不生效**（参与 0 台，右框空 → 该功能对客不出现）`;
+  }).join('\n');
+
+  return `${verdict}\n\n===== 明细 =====\n${JSON.stringify(out, null, 2)}`;
 }
