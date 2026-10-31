@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.6.0
+version: 1.6.1
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.6.0
+# 旺云商户端运营助手 v1.6.1
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -158,6 +158,7 @@ if (!shop) throw new Error('未取到场所名');   // 取不到就停，不要�
 | 「上架到吧台」怎么做才对 | `references/08-补货上架.md` |
 | 门店资料、自助开关、支付方式、短信、提现 | `references/09-门店资料.md` |
 | **占座 / 订座 开没开、客人能不能用**（⚠️ 机位名单为空则整页参数都不生效，两者是两套独立逻辑） | `references/09-门店资料.md` §3.4.1（两级生效模型）+ 操作 L |
+| **给机位填「这台机器什么配置」（占座/订座时 app 显示的就是它）** | `references/09-门店资料.md` §3.7 + 操作 M |
 | 让某一台机子不参与占座 / 订座 | `references/09-门店资料.md` §6.2（APP机位图，唯一入口） |
 | 开关某类语音播报（客户呼叫网管等） | `references/09-门店资料.md` §6.1.2（网吧语音管理） |
 | 这页能不能改 / 有没有配 / 还有哪些空着 | `references/11-全站盘点.md`（129 页可写性与空壳清单） |
@@ -165,7 +166,7 @@ if (!shop) throw new Error('未取到场所名');   // 取不到就停，不要�
 
 **不要一次性读全部文档。** 先按上表定位到 1-2 份，读它，再动手。
 
-## 四、高频操作（A~L）
+## 四、高频操作（A~M）
 
 ### A. 查某机位多少钱 / 通宵多少
 
@@ -406,6 +407,42 @@ const on = await page.evaluate(() =>
 
 字段全表、取整规则、实测基线见 `references/09-门店资料.md` §3.4 与 §3.4.1。
 
+### M. 批量写机位「电脑配置」（占座/订座时 app 显示的那段）
+
+**这是机位级配置**，系统设置 → 网吧配置 → 电脑配置（`/admin/systemSetting/netbarConfig/computerConfig`），
+存进 `areaClientConfig` 的 `attr1~attr10`。
+
+**批量改全店只走「区域设置」**：点它 → 弹窗默认把**全部区域都勾上**（实测 8 个）→
+点 5 次「添加配置」凑到 6 行 → 填文案 → 「确 定」。逐台点「修改电脑配置」是同一个弹窗，只是范围小。
+
+🔴 **四个硬限制（Element Plus 实测）**：
+
+1. **最多 6 行**：到 6 行「添加配置」按钮消失（源码 `N.length < 6`）。后端有 10 个 attr 槽，
+   但前端给不了第 7 行，**7 条内容只能合并进 6 行**。
+2. **每行 20 字**：`maxlength=20`，键盘输入和 `fill()` 都截断（fill 走真实输入事件）。
+3. 任一行空 → 「电脑配置请填写完整」，整批不提交。
+4. 点击「区域设置」后 3 秒内 `.el-checkbox` 可能还是 0 个 → 必须 `waitForSelector` 再读，
+   否则误判"区域列表为空"（实测空跑出现过 `区域可选=[]`）。
+
+**要超过 20 字时用原生 setter 绕**（实测 32 字完整落库）：
+
+```js
+const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+setter.call(el, longText);
+el.dispatchEvent(new Event('input', {bubbles: true}));
+```
+
+**6 行上限绕不过**：按钮不渲染，生产构建的元素上也没有 `__vueParentComponent` / `__vnode`
+（实测 `getOwnPropertyNames` 无任何 Vue 引用），拿不到组件数组。
+
+**提交前必须逐字校验**：读回 6 个输入框的值与期望对比，相等才点「确 定」；不等就中止，
+别赌——写坏的是全区域所有机位。用 `scripts/write-pc-config.js`（改顶部 `LINES`，
+`OVERWRITE=false` 只填不存）。
+
+⚠️ **同名陷阱**：移动端配置（`wwbao`）里也有个「电脑配置」，是**场所级**的
+「屏幕/CPU/显卡/键盘/鼠标」五框一组展示标签（最多 100 组），管店铺详情页，
+和机位级 `attr1~10` 互不影响，别改错地方。
+
 ## 五、脚本
 
 | 脚本 | 用途 | 会改数据吗 |
@@ -418,6 +455,7 @@ const on = await page.evaluate(() =>
 | `scripts/toggle-seat.js` | 按机位开关占座/订座（DRY_RUN 默认开） | 默认否 |
 | `scripts/read-seat-config.js` | **只读**：订座配置页 22 字段 + 4 开关一次读全（判断占座功能开没开看第一个开关） | 否 |
 | `scripts/read-seat-scope.js` | **只读**：APP机位图里占座/订座两个穿梭框的参与名单与计数 | 否 |
+| `scripts/write-pc-config.js` | 批量写机位电脑配置：区域设置 → 6 行 → 校验 → 提交 → 复核（`OVERWRITE=false` 只填不存） | 默认**是** |
 | `scripts/toggle-voice.js` | 按事件开关语音播报（通道+开关，DRY_RUN 默认开） | 默认否 |
 | `scripts/add-departments.js` | 批量补建部门（已存在则跳过，DRY_RUN 默认关） | 是 |
 | `scripts/publish-groupon.js` | 团购套餐上架到旺云商城/美团（含平台空表重试） | 是 |
@@ -733,3 +771,16 @@ v1.6.0 新增（**占座 / 订座的两级生效模型**）：此前这个最简
 本次实测（示例门店，2026-10-31）：总开关**开**；占座右框 6 台（068 被排除）→ 占座可用；
 **订座右框 0/0 → 订座对客完全不出现**；免费占座时长次数 0 次/天（有 280 分钟免费时长也发不出来）；
 扣费只勾「现金+赠送」；占座接单开但依赖排班。
+
+v1.6.1 新增（**「这台机器什么配置」= 电脑配置页的 attr1~10**）：占座/订座时 app 上显示的那段
+配置文案，就存在 `areaClientConfig` 的 `attr1~attr10`。拆完发现四个前端硬限制。
+
+- 批量改全店走「区域设置」（整批覆盖选中区域所有机位），弹窗**默认全区域勾选**；
+  行内「修改电脑配置」=「批量设置」，只管勾选的机位。
+- 🔴 **最多 6 行**：到 6 行「添加配置」按钮消失，后端 10 个槽前端只给 6 行，7 条得合并。
+- 🔴 **每行 20 字**：`maxlength=20`，键盘输入与 `fill()` 都截断；要超长用原生 setter +
+  `dispatchEvent('input')` 绕过（实测 32 字可落库），但 6 行上限绕不过。
+- 🔴 任一行空 → 「电脑配置请填写完整」整批不提交；提交前务必逐字校验再点「确 定」。
+- ⚠️ 移动端配置里也有个「电脑配置」，是场所级的屏幕/CPU/显卡/键盘/鼠标标签组，
+  跟机位级配置互不影响，别改错。
+- 脚本：`scripts/write-pc-config.js`（`OVERWRITE` 默认 false）。

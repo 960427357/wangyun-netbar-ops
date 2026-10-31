@@ -2,6 +2,58 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## v1.6.1 — 2026-10-31
+
+**拆完「电脑配置」——占座/订座时 app 显示的「这台机器什么配置」就来自这里**，
+并踩出四个前端硬限制。
+
+### 结构
+
+- 路由 `/admin/systemSetting/netbarConfig/computerConfig`，列：电脑名称 / 区域 / 配置信息 / 操作。
+- 后端 `areaClientConfig` 留了 **`attr1`~`attr10` 十个槽**，前端按行序写 `attr1`、`attr2`…；
+  读取时把非空 attr 收成 `attrs` 数组，「配置信息」列**竖排**展示（不是逗号拼接）。
+- 接口全部明文：`/business-netbar/areaClientConfig/{list,edit,allArea}`。
+- 两个入口：行内「修改电脑配置」=「批量设置」（`clientGuidList`，只管勾选的机位）；
+  **「区域设置」= 整批覆盖选中区域下所有机位**（`areaGuidList`），
+  且弹窗**默认把全部区域都勾上**（实测 8 个）。批量改全店走这个，别逐台点。
+
+### 四个硬限制（实测）
+
+1. **最多 6 行** —— 到 6 行「添加配置」按钮消失（源码 `N.length < 6`）。后端有 10 个槽，
+   前端给不了第 7 行，**7 条内容只能合并进 6 行**。
+2. **每行 20 字** —— `maxlength=20`，键盘输入和 `fill()` 都被截断（fill 走真实输入事件）。
+3. 任一行空 → 「电脑配置请填写完整」，整批不提交。
+4. 点「区域设置」后 3 秒内 `.el-checkbox` 可能仍是 0 个 → 必须 `waitForSelector`，
+   否则误判"区域列表为空"（空跑时确实出现过 `区域可选=[]`）。
+
+### 20 字可绕、6 行绕不过
+
+```js
+const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+setter.call(el, longText);
+el.dispatchEvent(new Event('input', {bubbles: true}));
+```
+
+实测 32 字完整写入并落库。**6 行上限绕不过**：按钮不渲染，生产构建的元素上
+也没有 `__vueParentComponent` / `__vnode`（`getOwnPropertyNames` 里没有任何 Vue 引用），
+拿不到组件数组去 push。
+
+### 变更
+
+| 文件 | 内容 |
+|---|---|
+| `references/09-门店资料.md` | **§3.7 电脑配置整节重写**：接口、attr 结构、两入口对照、四限制、绕过写法、实测流程、同名陷阱 |
+| `SKILL.md` | 路由表 +1 行；新增 **操作 M**；脚本表 +1 行；版本 1.6.1 |
+| `scripts/write-pc-config.js` | 新增：区域设置 → 6 行 → 逐字校验 → 提交 → 刷新复核（`OVERWRITE` 默认 false） |
+
+### 同名陷阱
+
+移动端配置（`wwbao`）里也有「电脑配置」，是**场所级**的「屏幕/CPU/显卡/键盘/鼠标」五框一组
+展示标签（最多 100 组），管店铺详情页，与机位级 `attr1~10` 互不影响。
+
+本次实测：示例门店 9 台机位全部写入 6 行配置（7 条内容中「散热」并入「硬盘」行），
+含 23 字和 32 字两条超限文案，刷新后完整保留。
+
 ## v1.6.0 — 2026-10-31
 
 **把「占座 / 订座」固化成两级生效模型**，并纠正一处会答错题的认知。
