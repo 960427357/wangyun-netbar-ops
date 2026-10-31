@@ -65,7 +65,12 @@ wangyun-netbar-ops/
 │   ├── 07-商品销售.md           商超三层、六个基础 tab、团购套餐、核销口径
 │   ├── 08-补货上架.md           补货 vs 纯上架的语义差异（纠错版）
 │   ├── 09-门店资料.md           网吧配置 8 tab、移动端门面、钱包提现、语音、交接班
-│   └── 10-上架路径.md           新增商品、批量导入、内联编辑三条路径
+│   ├── 10-上架路径.md           新增商品、批量导入、内联编辑三条路径
+│   ├── 11-全站盘点.md           129 页可写性与空壳清单
+│   ├── 12-团购上架.md           建套餐→上架旺云商城/美团，宣传图规范
+│   ├── 13-员工激励.md           提成四种算法、结构判据、新建/作废 SOP
+│   ├── 14-积分签到.md           签到三层结构、档位规则、积分钱包与用途
+│   └── 15-排班与班次.md          岗位班次、OA 月排班、3 人 2 班上四休二推导
 └── scripts/
     ├── read-rates.js           遍历 8 区域四档费率，输出 markdown 表（只读）
     ├── crawl-pages.js          按路由批量抓页面要素（只读）
@@ -82,6 +87,14 @@ wangyun-netbar-ops/
     ├── create-promotion.js     会员端宣传（富文本）
     ├── make-groupon-banner.js  券图 750x400（场所名实时读取）
     ├── audit-commission.js    提成规则只读审计（阶梯+成本估算）
+    ├── create-commission-rule.js 新建提成规则（SAVE=false 只填不存）
+    ├── void-commission-rule.js 作废提成规则（先打存档行）
+    ├── create-lottery.js       转盘抽奖（次数上限 0=关积分抽奖）
+    ├── create-recharge-gift.js 充值赠送（满 X 元送 N 次抽奖，≤6 档）
+    ├── create-signin.js        积分签到（连续/累计 + ≤10 档奖励）
+    ├── set-goods-points.js     批量设商品兑换积分（只改 integral）
+    ├── set-schedule.js         单人员工整月排班（SAVE=false 先看 preview）
+    ├── dispatch-task.js        手动派发员工任务（按人/按岗位，SAVE=false 只填不存）
     └── sweep-pages.js          全站 129 页盘点（只读，改 START 分批）
 ```
 
