@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.6.13
+version: 1.6.14
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.6.13
+# 旺云商户端运营助手 v1.6.14
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -118,6 +118,12 @@ if (!shop) throw new Error('未取到场所名');   // 取不到就停，不要�
    （如 `/admin/systemSetting/deviceManagement` 会回到场所管理）。
 7. **一步一 open 等于步步白等。** 浏览器要用后台常驻任务挂住（§一），后续命令直接复用；
    同一条流水线的多步操作合并到一个脚本里。已见过反例：建券、上架各开一次浏览器，多花一倍时间。
+   ⚠️ **常驻任务的 `sleep` 是到期就会退出的**（常用 `sleep 3000` ≈ 50 分钟）。到点进程结束、
+   浏览器随之关闭，`playwright-cli list` 返回 `(no browsers)`，随后所有命令都报连不上。
+   **每次开新一批操作前先 `playwright-cli list`**：有会话就直接用；没有就重开
+   `playwright-cli open --browser=msedge --headed --persistent`。
+   持久化 profile 会保留 cookie，**实测重开后登录态还在，不用重新登录**——但仍要回读
+   `.el-header` 确认场所没变。
 8. **写操作先 dry-run 报数。** 库存、价格、发券、发礼包这类改动，先跑脚本的 DRY_RUN 模式把
    「改前 → 改后」报给用户确认，再落库。
 9. **一个「适用场景」只保留一条生效规则——先手工作废旧的，再建新的。**
@@ -1195,3 +1201,10 @@ v1.6.13 修正（**校验正则漏了「元」字**）：
 - 正则统一为 `/(\d+(?:\.\d+)?)\s*元?\s*(?:抢|抵|享|得)\s*(\d+(?:\.\d+)?)/`。
 - 🔴 **先核对「识别到的网费券条数」再看校验结论**——「全部 OK」只有在条数对得上时才算通过。
 - 当场所全量结果：19 条网费券 **19/19 通过**、包时 5 条跳过、福袋 4 条仍等售价。
+
+v1.6.14 修正（**常驻浏览器会到点退出**）：
+
+- 后台常驻命令常用 `sleep 3000`（≈50 分钟），到期进程结束、浏览器随之关闭，
+  `playwright-cli list` 返回 `(no browsers)`，之后所有命令连不上。
+- 对策：**每批操作前先 `playwright-cli list`**；没有就重开 persistent 窗口。
+- 持久化 profile 保留 cookie，实测**重开后登录态还在**，不用重新登录，但要回读 `.el-header` 确认场所。
