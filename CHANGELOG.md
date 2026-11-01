@@ -2,6 +2,17 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## v1.6.14 — 2026-11-01
+
+**常驻浏览器的 `sleep` 到点就退，浏览器跟着关。** 一次 50 分钟的常驻任务（`sleep 3000`）结束后，
+`playwright-cli list` 变成 `(no browsers)`，后续命令全部连不上。
+
+- 对策：**每批操作开始前先 `playwright-cli list`**，没有就重开
+  `playwright-cli open --browser=msedge --headed --persistent`。
+- 好消息：持久化 profile 保留 cookie，**实测重开后登录态还在**，不用重新扫码/输密码；
+  但还是要回读 `.el-header` 确认场所。
+- 已补进 SKILL.md 铁律 #7。
+
 ## v1.6.13 — 2026-11-01
 
 **校验正则漏了「元」字，会静默跳过一整类券。** 一次读全 28 条时顺手跑校验，发现上一版
