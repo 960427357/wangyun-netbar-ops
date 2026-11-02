@@ -59,13 +59,22 @@ node scripts/detect-browser.mjs
 > 不兼容（不认 `locator` / `getByRole`），要额外维护一套写法，**已决定暂不采用**。
 > 评估结论存档在 `references/90-浏览器工具适配.md`。
 
+压图脚本 `scripts/fit-image.py` 用 Python + Pillow（**唯一一个非 Node 脚本**，只处理本地文件、不碰浏览器）：
+
+```bash
+pip install pillow
+python scripts/fit-image.py 图.png --check     # 先体检
+```
+
+平台所有图位硬上限 **500KB**，超限是静默失败，上传前一律先过这个脚本（铁律 #20）。
+
 登录必须由使用者本人完成。本包不包含、不索取、不记录任何账号密码。
 
 ## 目录结构
 
 ```
 wangyun-netbar-ops/
-├── SKILL.md                    # 主入口：触发条件、十九条铁律、路由表、高频操作
+├── SKILL.md                    # 主入口：触发条件、二十条铁律、路由表、高频操作
 ├── references/
 │   ├── 01-功能地图.md           9 大模块完整菜单树 + 全部路由 + 只读页清单
 │   ├── 02-配置总纲.md           配置依赖链（9 步顺序）、通用流程、红线
@@ -110,6 +119,7 @@ wangyun-netbar-ops/
     ├── set-goods-points.js     批量设商品兑换积分（只改 integral）
     ├── set-schedule.js         单人员工整月排班（SAVE=false 先看 preview）
     ├── dispatch-task.js        手动派发员工任务（按人/按岗位，SAVE=false 只填不存）
+    ├── fit-image.py            上传前压图：≤480KB（平台上限 500KB），方图/16:9 裁切、只读不覆盖
     └── sweep-pages.js          全站 129 页盘点（只读，改 START 分批）
 ```
 
