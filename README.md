@@ -74,7 +74,7 @@ python scripts/fit-image.py 图.png --check     # 先体检
 
 ```
 wangyun-netbar-ops/
-├── SKILL.md                    # 主入口：触发条件、二十条铁律、路由表、高频操作
+├── SKILL.md                    # 主入口：触发条件、二十一条铁律、路由表、高频操作
 ├── references/
 │   ├── 01-功能地图.md           9 大模块完整菜单树 + 全部路由 + 只读页清单
 │   ├── 02-配置总纲.md           配置依赖链（9 步顺序）、通用流程、红线
@@ -120,6 +120,10 @@ wangyun-netbar-ops/
     ├── set-schedule.js         单人员工整月排班（SAVE=false 先看 preview）
     ├── dispatch-task.js        手动派发员工任务（按人/按岗位，SAVE=false 只填不存）
     ├── fit-image.py            上传前压图：≤480KB（平台上限 500KB），方图/16:9 裁切、只读不覆盖
+    ├── create-goods-package.js 建套餐（普通/自选）：填表→选商品→传图→提交→回读（DRY 默认开）
+    ├── gen-package-image.py     生成套餐宣传图 800×800，末尾自动压到 ≤480KB
+    ├── read-goods-price.js      商品列表连销售价一起读（套餐定价用）
+    ├── read-goods-package.js    套餐列表只读
     └── sweep-pages.js          全站 129 页盘点（只读，改 START 分批）
 ```
 
