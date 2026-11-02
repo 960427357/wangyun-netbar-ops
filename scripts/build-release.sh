@@ -40,8 +40,9 @@ pack() {
 case "${1:-}" in
   --all)
     echo "打包 v1.6.25 起全部 tag → $OUT_DIR/"
+    # tag 名形如 v1.6.25 → 按点切分是 $1=v1 $2=6 $3=25
     for t in $(git tag -l 'v1.6.*' --sort=version:refname \
-                 | awk -F. '{ if ($2==1 && $3>=25) print }'); do
+                 | awk -F. '{ if ($2+0 == 6 && $3+0 >= 25) print }'); do
       pack "$t"
     done
     ;;
