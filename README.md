@@ -39,14 +39,31 @@ git clone https://github.com/960427357/wangyun-netbar-ops.git \
 
 ## 依赖
 
-脚本依赖 `playwright-cli` 与一个**已登录的有头浏览器会话**：
+支持两种浏览器后端，**先探测再决定**：
+
+```bash
+node scripts/detect-browser.mjs
+```
+
+### 基线：playwright-cli（必装）
 
 ```bash
 npm install -g @playwright/cli@latest
+npx playwright install chromium        # 首次需要，否则 open 会找不到浏览器
 
 export PATH="$PATH:$APPDATA/npm"
 playwright-cli open https://wyb.5188cloud.net/login --browser=msedge --headed --persistent
 ```
+
+有 Node ≥ 20 就能跑，**分发给别人时以此为准**。
+
+### 加速器：ego-browser（可选）
+
+装了 ego lite 才有，用于固化后的长流程和定时任务——一段脚本一次往返跑完，比逐步驱动快数倍。
+**缺了只影响速度，不影响功能。**
+
+> ⚠️ ego 与 playwright **只能并存，不能嵌套**：ego 规范明文禁止 `import Playwright`，
+> 且不开放任何 CDP 端口，外部无法接管。细节见 `references/90-浏览器工具适配.md`。
 
 登录必须由使用者本人完成。本包不包含、不索取、不记录任何账号密码。
 
@@ -70,8 +87,12 @@ wangyun-netbar-ops/
 │   ├── 12-团购上架.md           建套餐→上架旺云商城/美团，宣传图规范
 │   ├── 13-员工激励.md           提成四种算法、六道关（开关/在岗/归属）、结构判据、SOP
 │   ├── 14-积分签到.md           签到三层结构、档位规则、积分钱包与用途
-│   └── 15-排班与班次.md          岗位班次、OA 月排班、打卡两模式、3 人 2 班推导
+│   ├── 15-排班与班次.md          岗位班次、OA 月排班、打卡两模式、3 人 2 班推导
+│   ├── 16-交接班数据字典.md       交接班字段口径与取数路径
+│   ├── 17-外设租赁.md            外设租赁配置与计费
+│   └── 90-浏览器工具适配.md       playwright / ego 边界实测、选型规则、写法对照、分发依赖
 └── scripts/
+    ├── detect-browser.mjs      后端探测：ego / playwright 可用性与推荐后端（只读，普通 node 直接跑）
     ├── read-rates.js           遍历 8 区域四档费率，输出 markdown 表（只读）
     ├── crawl-pages.js          按路由批量抓页面要素（只读）
     ├── crawl-dialogs.js        打开新增弹窗抓表单字段（只开不存）
