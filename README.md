@@ -54,7 +54,7 @@ playwright-cli open https://wyb.5188cloud.net/login --browser=msedge --headed --
 
 ```
 wangyun-netbar-ops/
-├── SKILL.md                    # 主入口：触发条件、十四条铁律、路由表、高频操作
+├── SKILL.md                    # 主入口：触发条件、十五条铁律、路由表、高频操作
 ├── references/
 │   ├── 01-功能地图.md           9 大模块完整菜单树 + 全部路由 + 只读页清单
 │   ├── 02-配置总纲.md           配置依赖链（9 步顺序）、通用流程、红线
