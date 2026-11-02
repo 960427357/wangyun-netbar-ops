@@ -2,6 +2,76 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## v1.6.22 — 2026-11-02
+
+**浏览器后端可移植性。** 新增 `references/90-浏览器工具适配.md` 与 `scripts/detect-browser.mjs`，让技能包在「只有 playwright」和「有 ego」两种环境下都能跑，并明确两者的边界与写法差异。
+
+### 一、「在 ego 里装 playwright」不成立
+
+想同时用两份浏览器的速度与能力，直觉是装到一起。实测三条否掉这条路：
+
+1. **ego 规范明文禁止**：`Do not import Playwright or launch another browser.`
+2. **ego 不开任何端口**：11 个 `ego.exe` 进程，`Get-NetTCPConnection -State Listen` 无匹配，
+   所以 `playwright-cli attach --cdp` / `chromium.connectOverCDP()` 没有端点可接。
+3. **ego CLI 没有 launch/attach**：只有 `import` / `skill` / `upgrade` / `nodejs` 四个动词。
+
+ego 内部确有 `page.cdp()` / `task.cdp()`，但只对脚本内部开放，不向外提供端点。
+
+→ 二者只能**并存**，不能嵌套。
+
+### 二、定位反转：playwright 是基线，ego 是加速器
+
+之前把 ego 当主线是错的。正确分工：
+
+| 后端 | 定位 | 场景 |
+|---|---|---|
+| `playwright-cli` | 基线，必装 | 摸页面、抓接口、分发给人；有 node 就能跑 |
+| `ego-browser` | 加速器，可选 | 固化后的长流程、定时任务；一次往返跑完整段 |
+
+发给别人时，**缺 ego 只影响速度，不影响功能**。
+
+### 三、新增探测脚本
+
+```bash
+node scripts/detect-browser.mjs          # 人类可读
+node scripts/detect-browser.mjs --json   # 机器可读，退出码 0/1
+```
+
+识别 `ego-browser`（含不在 PATH 的 `C:\Program Files\Citro Labs\ego lite\Application\<ver>\`）、
+`playwright-cli` 是否在 PATH、Playwright 浏览器内核是否已下载。
+
+实测输出（本机）：
+
+```
+ego-browser   OK    0.6.2.5
+playwright-cli OK    0.1.22
+浏览器内核     OK    chromium-1208, chromium_headless_shell-1208
+推荐后端：playwright
+```
+
+### 四、写进文档的迁移坑
+
+- ego **不认** `locator()` / `getByRole()` / `expect()` / `route()` / `context()`。
+  现有 35 个脚本里 `locator` 出现 55 次、`getByRole` 11 次，迁到 ego 必须逐个改写为
+  `css=... >> nth=N` / `loc=role:button[name='...']`。
+- ego 的 `evaluate` 回调不能引用外部变量，参数只能作为第二个参数传（单个 JSON 可序列化值）。
+- 中文**必须写进 `.mjs` 文件**，不能放进 `-e` 参数（shell 会破坏编码）。
+- ego 脚本不继承 shell 的 cwd 与环境变量，路径一律绝对路径。
+
+### 五、顺带修正
+
+- 铁律 #7 改为中性表述：会话常驻的原则**与后端无关**，playwright 用后台任务挂住、ego 靠 TaskSpace 天生常驻；
+  换后端省的是每步往返，省不掉重开会话的代价。
+- `SKILL.md` §一 新增「0. 先确认用哪个浏览器后端」，路由表新增一行指向 §90。
+
+### 六、建议（未执行）
+
+固定等待 204 处合计约 384 秒，是当前最大的性能负担，**换后端省不掉**。
+下一步应优先把 15 个 DOM 抓表脚本改成走接口（目前只有 1 个这么做），
+并按铁律 #12 落实「切 100 条/页」。
+
+---
+
 ## v1.6.21 — 2026-11-02
 
 **商品促销实测（活动管理 → 商品促销）。** 建了一条测试活动，把两个活动类型、三档商品范围、四档开放规则和折扣边界全跑了一遍。已升为**铁律 #16**（十五条 → 十六条）。

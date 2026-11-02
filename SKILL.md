@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.6.21
+version: 1.6.22
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.6.21
+# 旺云商户端运营助手 v1.6.22
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -22,6 +22,29 @@ visibility: "public"
 **核心判断：这个后台绝大多数操作是「读」，写操作集中在少数几个模块，而且有语义陷阱。**
 
 ## 一、开始前必做
+
+### 0. 先确认用哪个浏览器后端
+
+本技能包支持两种浏览器驱动，**先跑一次探测**，别凭猜：
+
+```bash
+node scripts/detect-browser.mjs
+```
+
+| 后端 | 定位 | 什么时候用 |
+|---|---|---|
+| `playwright-cli` | **基线，必装** | 摸页面、抓接口、发给别人用；有 node 就能跑 |
+| `ego-browser` | **加速器，可选** | 固化后的长流程、定时任务；一次往返跑完整段脚本，快数倍 |
+
+两条硬结论（实测，详见 `references/90-浏览器工具适配.md`）：
+
+- **ego 里装不了 playwright**：ego 规范明文禁止 `import Playwright`，且不开放任何 CDP 端口，
+  外部无法接管。二者只能**并存**，不能嵌套。
+- **发出去的那版必须在只有 playwright 的机器上跑通**。ego 缺了只影响速度，不影响功能。
+
+写法差异（`locator` / `getByRole` 在 ego 里不认，要用 `loc=` 或 CSS 选择器）见 §90.4。
+
+### 1. 启动 playwright 会话
 
 ```bash
 # 1. 保证 playwright-cli 在 PATH
@@ -116,8 +139,10 @@ if (!shop) throw new Error('未取到场所名');   // 取不到就停，不要�
    `getBoundingClientRect().height > 0` 判断可见，否则读到上一个标签页的数值。
 6. **路由必须写到三级。** 二级路径直接访问会回落到默认页
    （如 `/admin/systemSetting/deviceManagement` 会回到场所管理）。
-7. **一步一 open 等于步步白等。** 浏览器要用后台常驻任务挂住（§一），后续命令直接复用；
+7. **一步一 open 等于步步白等。** 浏览器会话必须常驻，后续命令直接复用同一窗口与登录态
+   （playwright 用后台任务挂住进程，ego 靠 TaskSpace 天生常驻）；
    同一条流水线的多步操作合并到一个脚本里。已见过反例：建券、上架各开一次浏览器，多花一倍时间。
+   **这条与用哪个后端无关**——换后端省的是每步往返，省不掉重开会话的代价。
    ⚠️ **常驻任务的 `sleep` 是到期就会退出的**（常用 `sleep 3000` ≈ 50 分钟）。到点进程结束、
    浏览器随之关闭，`playwright-cli list` 返回 `(no browsers)`，随后所有命令都报连不上。
    **每次开新一批操作前先 `playwright-cli list`**：有会话就直接用；没有就重开
@@ -213,6 +238,7 @@ if (!shop) throw new Error('未取到场所名');   // 取不到就停，不要�
 | **配员工提成 / 查提成结算 / 算激励成本**（⚠️ 先开两个「派送人」开关 + 有人排班，否则发不出钱） | `references/13-员工激励.md` |
 | **收银台 / 客户端选不到销售人、提成恒为 0** | `references/13-员工激励.md`「前置两关」+ `references/15-排班与班次.md` §四（排班制 vs 自由打卡） |
 | **配班次 / 排月班 / 24 小时两班倒怎么错开** | `references/15-排班与班次.md` |
+| **脚本跑不起来 / 换了浏览器 / 发给别人怎么跑 / playwright 和 ego 怎么选** | `references/90-浏览器工具适配.md` + 先跑 `node scripts/detect-browser.mjs` |
 | **查交接班明细：商超单品、外设租赁、原料消耗、换购/积分兑换** | `references/16-交接班数据字典.md` |
 | **外设租赁：今天有多少件在外面 / 近 7 天排行榜 / 利用率怎么算 / 为什么收入是 0** | `references/17-外设租赁.md` |
 | 交接班四个金额怎么对账 / 白班还是夜班 | `references/09-门店资料.md` §7 |
@@ -1368,3 +1394,19 @@ v1.6.21 补充（🔴 **商品促销实测**，已升为铁律 #16）：
   🔴 **红牛销售价是 0.01 元**（同类 3~5 元），疑似测试残留，配促销前必须先修。
 - 未验证：折扣作用在 `salePrice` 还是 `internetFeePrice`；与会员折扣/商品优惠券/团购券是否叠加；
   过期后开关是否自动关。这三条只能在收银端或到点后确认。
+
+v1.6.22 补充（**浏览器后端可移植**，新增 `references/90-浏览器工具适配.md` + `scripts/detect-browser.mjs`）：
+
+- 新增后端探测脚本：`node scripts/detect-browser.mjs`（`--json` 供程序消费，退出码 0/1 表示有无可用后端）。
+  它会识别 `ego-browser`（含不在 PATH 的安装目录）与 `playwright-cli` + 浏览器内核是否就绪。
+- 🔴 **「在 ego 里装 playwright」不成立**，三条实测证据：① ego 规范明文 `Do not import Playwright or launch another browser`；
+  ② ego 全部进程无任何 TCP 监听端口，`attach --cdp` / `connectOverCDP` 无端点可接；
+  ③ ego CLI 只有 `import/skill/upgrade/nodejs` 四个动词，没有 launch/attach。
+  ego 内部虽有 `page.cdp()`/`task.cdp()`，但只对脚本内开放，不对外提供端点。
+- 正确定位：**playwright 是基线（必装、可移植），ego 是加速器（可选）**。二者并存，不嵌套。
+- 选型：摸页面/抓接口用 playwright；固化后的长流程、定时任务用 ego（一次往返跑完整段，快数倍）。
+- 🔴 迁移坑：ego **不认** `locator()` / `getByRole()` / `expect()` / `route()`，要换成
+  `css=... >> nth=N`、`loc=role:button[name='...']`、`waitForSelector`；`evaluate` 回调不能引用外部变量。
+- 🔴 ego 脚本里的中文**必须写进 `.mjs` 文件**，不能放进 `-e` 参数（shell 会破坏编码）；
+  脚本不继承 shell 的 cwd 与环境变量，路径一律用绝对路径。
+- 分发前提：对方需 Node ≥ 20 + `npm i -g @playwright/cli` + `npx playwright install chromium`。
