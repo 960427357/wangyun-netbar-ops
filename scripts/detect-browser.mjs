@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /**
- * detect-browser.js —— 浏览器后端探测
+ * detect-browser.mjs —— 浏览器环境自检
  *
  * 用法：
- *   node scripts/detect-browser.js          # 打印人类可读报告
- *   node scripts/detect-browser.js --json   # 输出 JSON，供其他脚本消费
+ *   node scripts/detect-browser.mjs          # 打印人类可读报告
+ *   node scripts/detect-browser.mjs --json   # 输出 JSON，供其他脚本消费
  *
- * 退出码：0 = 至少有一个后端可用；1 = 两个都不可用
+ * 退出码：0 = playwright 就绪；1 = 缺东西，需按提示安装
+ *
+ * 本包只用 playwright-cli。脚本里顺带检测 ego-browser 仅作留档，
+ * 不参与判定，装了或没装都不影响退出码。
  *
  * 只做检测，不启动浏览器、不写任何文件。
  */
@@ -117,26 +120,19 @@ const ego = findEgo();
 const pw = findPlaywrightCli();
 const pwBrowsers = findPlaywrightBrowsers();
 
-// 推荐策略：ego 更快的长流程，但它常驻 TaskSpace、需人工交接控制权；
-// playwright 是零依赖基线，任何装了 node 的机器都能跑。
-let recommended = 'none';
-let reason = '';
+// 本包唯一支持的后端是 playwright-cli。
+// ego-browser 已评估并决定不采用（API 与 Playwright 不兼容，维护两套写法不划算），
+// 这里只把它记录在报告里备查，不参与任何判定，缺了、坏了都不影响结论。
+const ready = pw.ok && pwBrowsers.ok;
 
-if (pw.ok && pwBrowsers.ok) {
-  recommended = 'playwright';
-  reason = 'playwright-cli 与浏览器内核均就绪，可独立运行，无需 ego。';
-  if (ego.ok) reason += ' ego 同时可用，长流程可切 ego 提速。';
-} else if (ego.ok) {
-  recommended = 'ego';
-  reason = '仅 ego 可用；playwright-cli 或浏览器内核缺失。';
-} else {
-  reason = '两个后端都不可用，需先安装其一。';
-}
+const missing = [];
+if (!pw.ok) missing.push('playwright-cli 未安装：npm i -g @playwright/cli');
+if (!pwBrowsers.ok) missing.push('浏览器内核未下载：npx playwright install chromium');
 
 const report = {
   platform,
   node: process.version,
-  ego: { available: ego.ok, version: ego.version, path: ego.path },
+  ready,
   playwright: {
     cli: { available: pw.ok, version: pw.version, path: pw.path },
     browsers: {
@@ -145,24 +141,33 @@ const report = {
       kernels: pwBrowsers.browsers,
     },
   },
-  recommended,
-  reason,
+  missing,
+  // 仅供追溯，不代表可用性
+  ego: { available: ego.ok, version: ego.version, path: ego.path, adopted: false },
 };
 
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify(report, null, 2));
 } else {
   const mark = (b) => (b ? 'OK  ' : 'MISS');
-  console.log('浏览器后端探测\n');
-  console.log(`  平台          ${report.platform}  (node ${report.node})`);
-  console.log(`  ego-browser   ${mark(ego.ok)}  ${ego.version || '-'}`);
-  if (ego.path) console.log(`                 ${ego.path}`);
+  console.log('浏览器环境自检（后端：playwright-cli）\n');
+  console.log(`  平台           ${report.platform}  (node ${report.node})`);
   console.log(`  playwright-cli ${mark(pw.ok)}  ${pw.version || '-'}`);
-  if (pw.path) console.log(`                 ${pw.path}`);
-  console.log(`  浏览器内核     ${mark(pwBrowsers.ok)}  ${pwBrowsers.browsers.join(', ') || '未安装'}`);
-  console.log(`\n  推荐后端：${report.recommended}`);
-  console.log(`  原因：${report.reason}`);
-  console.log('\n  用法与写法对照见 references/90-浏览器工具适配.md');
+  if (pw.path) console.log(`                  ${pw.path}`);
+  console.log(`  浏览器内核      ${mark(pwBrowsers.ok)}  ${pwBrowsers.browsers.join(', ') || '未安装'}`);
+  if (pwBrowsers.path) console.log(`                  ${pwBrowsers.path}`);
+
+  console.log('');
+  if (ready) {
+    console.log('  结论：就绪，可以运行脚本。');
+  } else {
+    console.log('  结论：未就绪，请先补齐：');
+    for (const item of missing) console.log(`    · ${item}`);
+  }
+
+  // ego 只是留档，避免有人反复问「能不能用 ego」
+  console.log(`\n  （ego-browser ${ego.ok ? '存在，已评估' : '未安装'}；本包已决定不采用，不影响使用）`);
+  if (ego.ok) console.log('   评估结论见 references/90-浏览器工具适配.md');
 }
 
-process.exit(recommended === 'none' ? 1 : 0);
+process.exit(ready ? 0 : 1);

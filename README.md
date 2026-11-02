@@ -39,13 +39,7 @@ git clone https://github.com/960427357/wangyun-netbar-ops.git \
 
 ## 依赖
 
-支持两种浏览器后端，**先探测再决定**：
-
-```bash
-node scripts/detect-browser.mjs
-```
-
-### 基线：playwright-cli（必装）
+脚本依赖 `playwright-cli` 与一个**已登录的有头浏览器会话**：
 
 ```bash
 npm install -g @playwright/cli@latest
@@ -55,15 +49,15 @@ export PATH="$PATH:$APPDATA/npm"
 playwright-cli open https://wyb.5188cloud.net/login --browser=msedge --headed --persistent
 ```
 
-有 Node ≥ 20 就能跑，**分发给别人时以此为准**。
+有 Node ≥ 20 就能跑。装完可自检：
 
-### 加速器：ego-browser（可选）
+```bash
+node scripts/detect-browser.mjs
+```
 
-装了 ego lite 才有，用于固化后的长流程和定时任务——一段脚本一次往返跑完，比逐步驱动快数倍。
-**缺了只影响速度，不影响功能。**
-
-> ⚠️ ego 与 playwright **只能并存，不能嵌套**：ego 规范明文禁止 `import Playwright`，
-> 且不开放任何 CDP 端口，外部无法接管。细节见 `references/90-浏览器工具适配.md`。
+> **浏览器后端只用 playwright。** ego-browser 评估过——能跑且长流程更快，但 API 与 Playwright
+> 不兼容（不认 `locator` / `getByRole`），要额外维护一套写法，**已决定暂不采用**。
+> 评估结论存档在 `references/90-浏览器工具适配.md`。
 
 登录必须由使用者本人完成。本包不包含、不索取、不记录任何账号密码。
 
@@ -90,9 +84,9 @@ wangyun-netbar-ops/
 │   ├── 15-排班与班次.md          岗位班次、OA 月排班、打卡两模式、3 人 2 班推导
 │   ├── 16-交接班数据字典.md       交接班字段口径与取数路径
 │   ├── 17-外设租赁.md            外设租赁配置与计费
-│   └── 90-浏览器工具适配.md       playwright / ego 边界实测、选型规则、写法对照、分发依赖
+│   └── 90-浏览器工具适配.md       ego 评估存档（已决定不采用）+ playwright 环境自检
 └── scripts/
-    ├── detect-browser.mjs      后端探测：ego / playwright 可用性与推荐后端（只读，普通 node 直接跑）
+    ├── detect-browser.mjs      环境自检：playwright-cli 与浏览器内核是否就绪（只读）
     ├── read-rates.js           遍历 8 区域四档费率，输出 markdown 表（只读）
     ├── crawl-pages.js          按路由批量抓页面要素（只读）
     ├── crawl-dialogs.js        打开新增弹窗抓表单字段（只开不存）
