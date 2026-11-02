@@ -1,17 +1,43 @@
 # 旺云商户端运营助手 · wangyun-netbar-ops
 
-一个给 AI 用的技能包：把「旺云商户端」网吧/网咖 SaaS 后台（`https://wyb.5188cloud.net`）
-摸清后的结构、字段语义、配置顺序与踩坑记录固化下来，让 AI 不必每次从零点击探索。
+[![Release](https://img.shields.io/github/v/release/960427357/wangyun-netbar-ops?label=release&color=blue)](https://github.com/960427357/wangyun-netbar-ops/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-18%20files-important)](#文档目录)
+[![Scripts](https://img.shields.io/badge/scripts-43-blueviolet)](#脚本清单)
+[![Platform](https://img.shields.io/badge/platform-wyb.5188cloud.net-orange)](https://wyb.5188cloud.net)
 
-> 适用对象：网吧/网咖经营者、店长、以及要替他们操作后台的 AI 助手。
->
+给 AI 用的**旺云商户端**技能包。旺云商户端是网吧 / 网咖的 SaaS 后台（`https://wyb.5188cloud.net`），
+共 9 个一级模块、约 45 个二级、约 100 个叶子页。这个仓库把它的导航结构、字段语义、配置依赖顺序
+和踩过的坑固化成 **18 篇字段级文档 + 43 个自动化脚本**，让 AI 接管网吧后台时不必每次从零点击探索。
+
+**适用对象**：网吧 / 网咖经营者、店长，以及替他们操作后台的 AI 助手——
+任何能读 `SKILL.md` 的客户端（Claude Code、WorkBuddy、CodeBuddy 等）都能直接用。
+
 > **数据说明**：仓库内所有门店名称、场所编号、人员姓名与手机号均已替换为示例值，
 > 营业额与流水为示例数据（保持四则恒等式成立，便于理解字段关系），不对应任何真实门店。
 
-## 这个包解决什么问题
+## 能做什么
 
-旺云商户端有 9 个一级模块、约 100 个叶子页，导航是三段式（左侧一级 → 顶部二级 → 内层标签页），
-路由必须写到三级否则会回落。更麻烦的是几个语义陷阱：
+按真实需求列，一行一件事。搜不到想做的就在这里找：
+
+| 你想做的事 | 怎么做的（文档里的结论） | 去哪看 |
+|---|---|---|
+| 某机位一小时多少钱？通宵多少？ | 机位 → 区域 → 基准价 → 等级折扣 → 包时段策略，四层反推 | [04](references/04-区域费率.md) |
+| 上架商品，还要可选冷/热、加料加价 | 商品入库 + 规格标签组（**一个商品可挂多组**）+ 「上架吧台」填数量 | [07](references/07-商品销售.md) §2.2 · [10](references/10-上架路径.md) |
+| 货堆在仓库，没到吧台 | 内联改「默认吧台库存 +N / 未出货 −N」，**不是**补货弹窗（补货会虚增总库存） | [08](references/08-补货上架.md) |
+| 做一个套餐（固定几样 / 任选 N 件） | 普通套餐 or 自选套餐，含宣传图生成与压图 | [07](references/07-商品销售.md) §2.5 |
+| 上美团 / 抖音的团购券 | 建套餐 → 上架管理 → 库存一律 9999 | [12](references/12-团购上架.md) |
+| 配员工提成，别把钱配错 | 四种算法辨析、六道关、成本审计脚本 | [13](references/13-员工激励.md) |
+| 让员工收到补货 / 点单提醒 | 通知按**岗位**授权，不是按手机号 | [05](references/05-员工权限.md) §11 |
+| 图片传不上去，弹窗没反应 | 全站硬上限 **500KB**，超限是静默失败，先压后传 | [07](references/07-商品销售.md) §2.4.2 · `fit-image.py` |
+| 库存低于阈值要提醒 | 配阈值 → 开状态 → 勾岗位通知，三步缺一不可 | [07](references/07-商品销售.md) §2.2.1 |
+| 排班 / 打卡 / 交接班 | 岗位班次、OA 月排班、两种打卡模式 | [15](references/15-排班与班次.md) · [16](references/16-交接班数据字典.md) |
+| 签到、抽奖、充值赠送 | 连续/累计签到 ≤10 档、转盘次数上限、满 X 送 N 次 | [14](references/14-积分签到.md) · [06](references/06-营销配置.md) |
+| 某功能到底在哪个菜单 | 完整菜单树 + 全部路由 + 只读页清单 | [01](references/01-功能地图.md) |
+
+## 为什么不能直接问 AI
+
+普通 AI 对着这个后台会犯四类错，每一类都真踩过：
 
 - **「补货」不等于「上架」。** 补货弹窗的「数量」是入库数，会虚增总库存。只想把仓库的货搬到吧台，
   必须用商品表格的内联框改 `默认吧台库存 +N` / `未出货 −N`。踩过这个坑，账面多记了 20 瓶。
@@ -19,11 +45,25 @@
 - **价格是三层叠出来的。** `区域基准价 × 费率明细 × 等级折扣`，等级面板显示红字时折扣不生效。
 - **接口不能自己 fetch。** 裸请求返回 406，只能用 `page.waitForResponse` 截页面自己发的包。
 
-这些都在文档里写明了判断依据，不是凭印象。
+这些都在文档里写明了判断依据，不是凭印象。**没验证的项单独标出来，不硬写成结论。**
+
+## 覆盖范围
+
+| 一级模块 | 路由 | 本包覆盖的内容 |
+|---|---|---|
+| 账目管理 | `/netBarSummary` | 交接班记录、字段口径与取数路径 |
+| 销售管理 | `/marketManage` | 商超三层（商品/套餐/原料/报损/盘点）、基础管理 6 tab、核销管理、团购管理、设备租赁、异常订单 |
+| 顾客管理 | `/customerManage` | 会员管理、历史会员删除、黑名单 |
+| 会员促销 | `/memberActivityManage` | 8 类促销人群、7 类策略设置、促销历史、充值赠送、商品优惠券 |
+| 活动管理 | `/netBarActivity` | 整点抽奖、积分活动（签到/转盘/积分记录）、游戏活动、商品促销、礼包设置 |
+| 员工管理 | `/staffManage` | 部门 → 岗位 → 角色 → 员工五层、提成、排班、OA、派发任务 |
+| 服务管理 | `/serviceManage` | 语音播报（5 页）、机位图（大屏 / APP）、会员通知宣传 |
+| 计费设置 | `/msBarOptions` | **全 7 页多数只读**——这类页本包会直接告诉你别改 |
+| 基础设置 | `/admin` | 场所管理、设备管理（一体机 / 支付宝桌贴）、网吧配置 4 项、通知权限 |
 
 ## 安装
 
-### 方式一：放进 WorkBuddy / CodeBuddy 用户级技能目录
+### 方式一：git clone（推荐，方便更新）
 
 ```bash
 git clone https://github.com/960427357/wangyun-netbar-ops.git \
@@ -48,29 +88,6 @@ unzip wangyun-netbar-ops-v1.6.30.zip -d ~/.workbuddy/skills/
 
 `references/` 下的 markdown 可以单独阅读，不依赖任何工具。
 它们是给人和 AI 共同阅读的，字段名保留后台原文（含平台的拼写错误，如 `gruopWriteOff`）。
-
-## 发布与打包
-
-打包脚本 `scripts/build-release.sh`，用 `git archive` 而不是 `zip -r`——**只打已提交内容**，
-不受工作区未提交改动影响，同一个 tag 重打出来内容一致。
-
-```bash
-bash scripts/build-release.sh            # 打当前 HEAD，版本号从 SKILL.md 读
-bash scripts/build-release.sh v1.6.30    # 打指定 tag
-bash scripts/build-release.sh --all      # v1.6.25 起所有 tag 各打一个
-```
-
-产物落在 `dist/`（已 gitignore），内含顶层目录 `wangyun-netbar-ops-<tag>/`。
-
-发版流程：
-
-1. 改 `SKILL.md` 的 `version:` 字段与 CHANGELOG
-2. `git commit` → `git tag -a vX.Y.Z` → `git push origin main --tags`
-3. `bash scripts/build-release.sh vX.Y.Z`
-4. `gh release create vX.Y.Z dist/wangyun-netbar-ops-vX.Y.Z.zip --title "…" --notes-file …`
-
-Release 说明的写法约定：**第一段是「一句话结论」**，说明这次到底发现了什么坑；
-未验证的项单独列一节，不硬写成结论。
 
 ## 依赖
 
@@ -105,7 +122,7 @@ python scripts/fit-image.py 图.png --check     # 先体检
 
 登录必须由使用者本人完成。本包不包含、不索取、不记录任何账号密码。
 
-## 目录结构
+## 文档目录
 
 ```
 wangyun-netbar-ops/
@@ -117,7 +134,7 @@ wangyun-netbar-ops/
 │   ├── 04-区域费率.md           8 区域费率快照、方案共用关系、量级矛盾、按机位查价
 │   ├── 05-员工权限.md           部门→岗位→角色→员工五层，绩效/激励/打赏/OA
 │   ├── 06-营销配置.md           8 类促销人群、策略、券、充值赠送、抽奖签到礼包
-│   ├── 07-商品销售.md           商超三层、六个基础 tab、团购套餐、核销口径
+│   ├── 07-商品销售.md           商超三层、六个基础 tab、套餐、库存预警、上架与核销
 │   ├── 08-补货上架.md           补货 vs 纯上架的语义差异（纠错版）
 │   ├── 09-门店资料.md           网吧配置 8 tab、移动端门面、钱包提现、语音、交接班
 │   ├── 10-上架路径.md           新增商品、批量导入、内联编辑三条路径
@@ -129,41 +146,61 @@ wangyun-netbar-ops/
 │   ├── 16-交接班数据字典.md       交接班字段口径与取数路径
 │   ├── 17-外设租赁.md            外设租赁配置与计费
 │   └── 90-浏览器工具适配.md       ego 评估存档（已决定不采用）+ playwright 环境自检
-└── scripts/
-    ├── detect-browser.mjs      环境自检：playwright-cli 与浏览器内核是否就绪（只读）
-    ├── read-rates.js           遍历 8 区域四档费率，输出 markdown 表（只读）
-    ├── crawl-pages.js          按路由批量抓页面要素（只读）
-    ├── crawl-dialogs.js        打开新增弹窗抓表单字段（只开不存）
-    ├── replenish.js            纯上架到吧台（DRY_RUN 默认开）
-    ├── add-goods.js            批量新增商品主档（DRY_RUN 默认开）
-    ├── toggle-seat.js          按机位开关占座/订座（DRY_RUN 默认开）
-    ├── toggle-voice.js         按事件开关语音播报（DRY_RUN 默认开）
-    ├── add-departments.js      批量补建部门（已存在则跳过）
-    ├── publish-groupon.js      团购券上架（含平台空表重试）
-    ├── create-publish-groupon.js 团购券一条龙：建套餐→上架→复核
-    ├── set-recommend-hot.js    设/取消推荐、热门
-    ├── create-notice.js        会员通知（存草稿/提交审核）
-    ├── create-promotion.js     会员端宣传（富文本）
-    ├── make-groupon-banner.js  券图 750x400（场所名实时读取）
-    ├── audit-commission.js    提成规则只读审计（阶梯+成本估算）
-    ├── create-commission-rule.js 新建提成规则（SAVE=false 只填不存）
-    ├── void-commission-rule.js 作废提成规则（先打存档行）
-    ├── create-lottery.js       转盘抽奖（次数上限 0=关积分抽奖）
-    ├── create-recharge-gift.js 充值赠送（满 X 元送 N 次抽奖，≤6 档）
-    ├── create-signin.js        积分签到（连续/累计 + ≤10 档奖励）
-    ├── set-goods-points.js     批量设商品兑换积分（只改 integral）
-    ├── set-schedule.js         单人员工整月排班（SAVE=false 先看 preview）
-    ├── dispatch-task.js        手动派发员工任务（按人/按岗位，SAVE=false 只填不存）
-    ├── fit-image.py            上传前压图：≤480KB（平台上限 500KB），方图/16:9 裁切、只读不覆盖
-    ├── create-goods-package.js 建套餐（普通/自选）：填表→选商品→传图→提交→回读（DRY 默认开）
-    ├── gen-package-image.py     生成套餐宣传图 800×800，末尾自动压到 ≤480KB
-    ├── read-goods-price.js      商品列表连销售价一起读（套餐定价用）
-    ├── read-goods-package.js    套餐列表只读
-    ├── build-release.sh         打 Release 包：git archive 指定 tag → dist/（可复现）
-    └── sweep-pages.js          全站 129 页盘点（只读，改 START 分批）
+└── scripts/                    # 43 个脚本，见下节
 ```
 
-## 会用到的三条路
+## 脚本清单
+
+绝大多数脚本都是 **`DRY_RUN` / `SAVE=false` 默认开**——先只填不存，看清楚再落库。
+
+**读（只读，安全）**
+
+| 脚本 | 用途 |
+|---|---|
+| `detect-browser.mjs` | 环境自检：playwright-cli 与浏览器内核是否就绪 |
+| `read-rates.js` | 遍历 8 区域四档费率，输出 markdown 表 |
+| `read-goods-price.js` | 商品列表连销售价一起读（套餐定价要先查原价） |
+| `read-goods-package.js` | 套餐列表只读 |
+| `read-goods-sale.js` | 销售总览（DOM 抓表，约 19s） |
+| `read-goods-sale-api.js` | 销售总览（接口版，约 4~5s，快 4.5 倍） |
+| `read-groupon-sales.js` | 团购券销售记录 |
+| `read-handover.js` | 交接班记录 |
+| `read-rental.js` | 外设租赁数据 |
+| `read-seat-config.js` / `read-seat-scope.js` | 机位占座配置 / 范围 |
+| `read-wwbao.js` | 旺旺宝相关配置 |
+| `audit-commission.js` | 提成规则只读审计（阶梯 + 成本估算） |
+| `audit-groupon-coupons.js` | 团购券缺售价等异常盘点 |
+| `crawl-pages.js` / `crawl-dialogs.js` | 按路由批量抓页面要素 / 打开弹窗抓表单字段 |
+| `sweep-pages.js` | 全站 129 页盘点（改 `START` 分批） |
+
+**写（默认只填不存）**
+
+| 脚本 | 用途 |
+|---|---|
+| `replenish.js` | 纯上架到吧台（正确姿势，不虚增库存） |
+| `add-goods.js` | 批量新增商品主档 |
+| `create-goods-package.js` | 建套餐（普通/自选）一条龙：填表→选商品→传图→提交→回读 |
+| `publish-groupon.js` / `create-publish-groupon.js` | 团购券上架 / 建套餐→上架→复核一条龙 |
+| `create-notice.js` | 会员通知（存草稿 / 提交审核） |
+| `create-promotion.js` | 会员端宣传（富文本） |
+| `create-lottery.js` / `create-recharge-gift.js` / `create-signin.js` | 抽奖 / 充值赠送 / 积分签到 |
+| `create-commission-rule.js` / `void-commission-rule.js` | 新建 / 作废提成规则（作废前先打存档行） |
+| `create-staff.js` / `add-departments.js` | 批量建员工 / 补建部门 |
+| `set-schedule.js` / `dispatch-task.js` | 整月排班 / 派发员工任务 |
+| `set-goods-points.js` / `set-recommend-hot.js` | 批量设兑换积分 / 设推荐热门 |
+| `toggle-seat.js` / `toggle-voice.js` | 按机位开关占座订座 / 按事件开关语音播报 |
+| `write-pc-config.js` / `write-wwbao.js` | 客户端配置 / 旺旺宝配置 |
+
+**工具**
+
+| 脚本 | 用途 |
+|---|---|
+| `fit-image.py` | 上传前压图 ≤480KB（平台上限 500KB），方图 / 16:9 裁切，永不覆盖原图 |
+| `gen-package-image.py` | 生成套餐宣传图 800×800，末尾自动压体积 |
+| `make-groupon-banner.js` | 券图 750×400（场所名实时读取） |
+| `build-release.sh` | 打 Release 包：`git archive` 指定 tag → `dist/`（可复现） |
+
+## 会用到的几条路
 
 **查价**：机位 → 区域（终端管理）→ 基准价（区域方案）→ 折扣（会员等级）→ 通宵（包时段策略 / 上网卡专场卡）。
 
@@ -201,9 +238,12 @@ wangyun-netbar-ops/
 大厅明细 10/14.8 与包时卡反推 5.8 元/小时不一致、默认区域明细仅 1。本包的处理原则是
 **只报后台配置值，不换算成"实际每小时收多少钱"**，要坐实只能开卡实测或问门店。
 
+另有一批结论标注为「未验证」，分散在各文档末尾（如套餐是否扣库存、撤销核销的审核入口在哪）。
+这些不是遗漏，是没样本硬撑——宁可标未验证，也不写成结论。
+
 ## 数据基准
 
-v1.1.0 · 2026-10-30 实测。本店基准：场所名「演示门店」、placeCode `00000000000000`。
+v1.6.30 · 2026-11-02 实测。本店基准：场所名「演示门店」、placeCode `00000000000000`。
 
 **这些是「采集当时的结果」，不是产品常量。** 换门店或换账号后：
 
@@ -212,6 +252,40 @@ v1.1.0 · 2026-10-30 实测。本店基准：场所名「演示门店」、place
 - **团购库存 9999** 是本店约定，换店先问店主要不要沿用。
 
 完整清单与接手新店的顺序见 `SKILL.md` §八「换一家网吧怎么用」。
+
+## 版本与打包
+
+版本号写在 `SKILL.md` 的 `version:` 字段，每次改动都在 `CHANGELOG.md` 留一条。
+
+打包用 `scripts/build-release.sh`（`git archive` 而非 `zip -r`，**只打已提交内容**，同 tag 重打结果一致）：
+
+```bash
+bash scripts/build-release.sh            # 打当前 HEAD，版本号从 SKILL.md 读
+bash scripts/build-release.sh v1.6.30    # 打指定 tag
+bash scripts/build-release.sh --all      # 全部 v1.6.25 起的 tag 各打一个
+```
+
+发版流程：
+
+1. 改 `SKILL.md` 的 `version:` 字段与 CHANGELOG
+2. `git commit` → `git tag -a vX.Y.Z` → `git push origin main --tags`
+3. `bash scripts/build-release.sh vX.Y.Z`
+4. `gh release create vX.Y.Z dist/wangyun-netbar-ops-vX.Y.Z.zip --title "…" --notes-file …`
+
+Release 说明的写法约定：**第一段是「一句话结论」**，说明这次到底发现了什么坑；
+未验证的项单独列一节，不硬写成结论。
+
+## 别名与检索关键词
+
+这个后台在不同场合叫法不一，这里把常见别名都列出来，方便检索命中：
+
+| 类别 | 关键词 |
+|---|---|
+| 平台名 | 旺云商户端、旺云、旺云网吧管理系统、5188cloud、wyb.5188cloud.net |
+| 行业 | 网吧、网咖、电竞馆、电竞酒店、网吧管理系统、网咖收银系统、网吧后台、网吧 SaaS |
+| 关联产品 | 旺旺吧网吧版、旺旺宝、旺宝、云管家 |
+| 业务场景 | 上机计费、机位价格、区域费率、通宵包夜、会员等级折扣、上网卡、专场卡、上架商品、吧台补货、商品套餐、库存预警、团购核销、员工提成、排班打卡、交接班、积分签到、转盘抽奖、充值赠送、会员通知、外设租赁 |
+| 技术栈 | AI 技能包、SKILL.md、Claude Skill、Agent Skill、WorkBuddy、CodeBuddy、Playwright、playwright-cli、浏览器自动化、网页自动化 |
 
 ## License
 
