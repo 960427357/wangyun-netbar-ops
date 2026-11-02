@@ -32,10 +32,45 @@ git clone https://github.com/960427357/wangyun-netbar-ops.git \
 
 重启对话后，提到「旺云商户端」「5188cloud」「上架商品」「某机位多少钱」等关键词即可命中。
 
-### 方式二：只读文档
+### 方式二：下载 Release 压缩包
+
+不想用 git 的话，从 [Releases](https://github.com/960427357/wangyun-netbar-ops/releases) 下最新的
+`wangyun-netbar-ops-vX.Y.Z.zip`（约 390KB，含文档 + 全部脚本）：
+
+```bash
+unzip wangyun-netbar-ops-v1.6.30.zip -d ~/.workbuddy/skills/
+```
+
+压缩包里已带顶层目录，解压即得 `~/.workbuddy/skills/wangyun-netbar-ops-v1.6.30/`。
+每个 Release 说明里都写了该包的 `sha256`，可用来验证下载完整性。
+
+### 方式三：只读文档
 
 `references/` 下的 markdown 可以单独阅读，不依赖任何工具。
 它们是给人和 AI 共同阅读的，字段名保留后台原文（含平台的拼写错误，如 `gruopWriteOff`）。
+
+## 发布与打包
+
+打包脚本 `scripts/build-release.sh`，用 `git archive` 而不是 `zip -r`——**只打已提交内容**，
+不受工作区未提交改动影响，同一个 tag 重打出来内容一致。
+
+```bash
+bash scripts/build-release.sh            # 打当前 HEAD，版本号从 SKILL.md 读
+bash scripts/build-release.sh v1.6.30    # 打指定 tag
+bash scripts/build-release.sh --all      # v1.6.25 起所有 tag 各打一个
+```
+
+产物落在 `dist/`（已 gitignore），内含顶层目录 `wangyun-netbar-ops-<tag>/`。
+
+发版流程：
+
+1. 改 `SKILL.md` 的 `version:` 字段与 CHANGELOG
+2. `git commit` → `git tag -a vX.Y.Z` → `git push origin main --tags`
+3. `bash scripts/build-release.sh vX.Y.Z`
+4. `gh release create vX.Y.Z dist/wangyun-netbar-ops-vX.Y.Z.zip --title "…" --notes-file …`
+
+Release 说明的写法约定：**第一段是「一句话结论」**，说明这次到底发现了什么坑；
+未验证的项单独列一节，不硬写成结论。
 
 ## 依赖
 
@@ -124,6 +159,7 @@ wangyun-netbar-ops/
     ├── gen-package-image.py     生成套餐宣传图 800×800，末尾自动压到 ≤480KB
     ├── read-goods-price.js      商品列表连销售价一起读（套餐定价用）
     ├── read-goods-package.js    套餐列表只读
+    ├── build-release.sh         打 Release 包：git archive 指定 tag → dist/（可复现）
     └── sweep-pages.js          全站 129 页盘点（只读，改 START 分批）
 ```
 
