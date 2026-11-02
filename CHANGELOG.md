@@ -2,7 +2,51 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## v1.6.23 — 2026-11-02
+
+**后端收口：只用 playwright，ego 不采用。**
+
+上一版（v1.6.22）把「双后端并存」写成了主线，本版撤回。原因是算过账：
+
+| 项 | 代价 |
+|---|---|
+| API 不兼容 | ego 不认 `locator` / `getByRole` / `expect` / `route`，现有脚本里 `locator` 出现 55 次、`getByRole` 11 次 |
+| 迁移工作量 | 35 个脚本逐个改写并重新验证 |
+| 长期维护 | 同一业务流程要维护两套写法 |
+| 换来的收益 | 长流程快数倍——但只在反复跑同一流程时才体现 |
+
+对一个以「读」为主的技能包来说，收益不抵成本。**ego 先行放弃，暂不考虑。**
+
+### 改动
+
+- `SKILL.md` §一 第 0 步由「先确认用哪个浏览器后端」改为「确认环境就绪」，只讲 playwright
+- 铁律 #7 恢复单后端表述（去掉 ego 那句）
+- `references/90-浏览器工具适配.md` 降级为**评估存档**，文首加不采用声明；
+  §90.1–§90.2 的三条实测结论保留，将来若重提此事先读那份，不要重新调研
+- `scripts/detect-browser.mjs` 改为**环境自检**：判定只看 playwright-cli + 浏览器内核，
+  ego 仅在报告末尾留一行备查，**不参与退出码**
+- README 依赖段恢复单一 playwright，补一句 ego 已评估不采用
+
+### 不变的部分
+
+技术结论仍然成立，且已存档：ego 里装不了 playwright（规范禁止 `import Playwright`、不开放 CDP 端口、
+CLI 无 launch/attach），两者只能并存不能嵌套。这条结论不因「不采用」而失效。
+
+### 分发依赖（三样）
+
+```bash
+# Node ≥ 20
+npm i -g @playwright/cli
+npx playwright install chromium
+node scripts/detect-browser.mjs   # 自检
+```
+
+---
+
 ## v1.6.22 — 2026-11-02
+
+> ⚠️ 本版的「双后端并存」决定已被 **v1.6.23 撤回**，最终只用 playwright。
+> 下面的技术结论（三条实测证据）仍然有效，保留存档。
 
 **浏览器后端可移植性。** 新增 `references/90-浏览器工具适配.md` 与 `scripts/detect-browser.mjs`，让技能包在「只有 playwright」和「有 ego」两种环境下都能跑，并明确两者的边界与写法差异。
 
