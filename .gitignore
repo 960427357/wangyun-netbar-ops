@@ -13,3 +13,6 @@
 *.log
 .DS_Store
 Thumbs.db
+
+# Release 打包产物（scripts/build-release.sh 生成）
+dist/
