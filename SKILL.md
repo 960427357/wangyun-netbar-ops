@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.6.27
+version: 1.6.28
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.6.27
+# 旺云商户端运营助手 v1.6.28
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -1529,3 +1529,14 @@ v1.6.27 更正（**商品标签可多选**，纠正 v1.6.26 的错误结论）�
   **判单选/多选只能看行为（是否累加 / 是否自动关闭 / 是否有多个关闭图标），不要看 CSS 类。**
 - 换标签也不是「整体覆盖」：取消某个 tag 只移除那一组，其余保留；
   但旧组自带的加价规则会随该组删除一起失效。
+
+v1.6.28 补充（**上架实操两条经验**，`07-商品销售.md` §2.2.3 末尾）：
+
+- 🔴 **自制商品会扣原材料库存**，纯外购成品要选「普通商品」——选错只能删了重建（属性保存后锁死）。
+- ✅ **切换「商品属性」不会清空已选内容**：填好分类/名称/单位/标签后改属性，前面填的都保留，
+  只是多出「商品条形码」。与促销页「切范围即清空」相反，别照搬那套防护。
+- **商品名称图片用 file input 直传**（`setInputFiles()`），上传异步——
+  **要轮询弹窗内 `img.src` 非空再点确认**，否则会存成无图。限制 jpg/png/jpeg、≤500 KB。
+  回填地址形如 `https://upload.51yunmeng.com:9000/operation/BUSINESS_SHOP/<文件名>.jpg`。
+- 实测上架「生椰拿铁」：普通商品、杯、12 元、挂「冷热(冷/热)」+「浓缩(不加/加一份意式浓缩+￥5)」
+  两组标签、默认吧台 50 杯，回读 `attribute=0`、`status=1`、`clientSale=1`、`salePrice=12.0`、`specsInfo` 2 组。
