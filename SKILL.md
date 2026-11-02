@@ -722,6 +722,7 @@ el.dispatchEvent(new Event('input', {bubbles: true}));
 | `scripts/create-publish-groupon.js` | 团购券一条龙：建套餐 → 上架 → 复核，一次跑完 | 是 |
 | `scripts/make-groupon-banner.js` | 团购券宣传图 750×400，**场所名实时读取** | 否 |
 | `scripts/read-groupon-sales.js` | **只读**：上架管理页销量排行（自动翻页、算占比、标出零销量/未上架有销量/1分钱券三类异常） | 否 |
+| `scripts/audit-groupon-coupons.js` | **只读**：团购券全量盘点（自动切 100 条/页 → 分网费/包时/福袋/其他四桶 → 网费跑校验式 → **输出待人工处理清单**） | 否 |
 | `scripts/read-goods-sale.js` | **只读**：销售总览四块（6 月收入卡 + 汇总 + 分类明细 + 商品明细全量翻页），输出单品榜、渠道分布、三处对账 | 否 |
 | `scripts/audit-commission.js` | 只读审计提成规则：解析阶梯 + 结构体检（起征点/周期/范围/岗位/拆单） | 否 |
 | `scripts/create-commission-rule.js` | 新建提成规则一条龙：填表 → 回读勾选状态 → 保存（`SAVE=false` 只填不存） | **是** |
