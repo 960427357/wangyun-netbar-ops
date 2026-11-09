@@ -105,14 +105,17 @@ async page => {
       if (opened !== 'ok') continue;
       await page.waitForTimeout(2600);
 
-      // 1) 使用限制
-      log.push('  使用限制→' + c.limit + ' = ' + await pickSelect('使用限制', c.limit));
+      // 1) 使用限制（现值一致就别动：一动手会把核销次数 / 使用时间清空）
+      const cur = await readState();
+      if (cur['使用限制'] === c.limit) log.push('  使用限制已为 ' + c.limit + '，不动');
+      else log.push('  使用限制→' + c.limit + ' = ' + await pickSelect('使用限制', c.limit));
 
-      // 2) 三个必填下拉补齐，最多三轮（改使用限制会连带重置核销次数 / 使用时间）
+      // 2) 三个必填下拉补齐，最多三轮
+      //    ⚠️「限新会员」的弹窗里「单人核销次数」整项不渲染，readState 返回 'NO ITEM'，属正常，跳过
       for (let round = 0; round < 3; round++) {
         const st = await readState();
         const todo = [];
-        if (st['单人核销次数'] !== '不限制次数') todo.push(['单人核销次数', '不限制次数']);
+        if (st['单人核销次数'] === '(空)' || st['单人核销次数'] === '') todo.push(['单人核销次数', '不限制次数']);
         if (st['使用时间'] !== '不限制时间') todo.push(['使用时间', '不限制时间']);
         if (!todo.length) { log.push('  必填下拉 = ' + JSON.stringify(st)); break; }
         for (const [lp, v] of todo) {
