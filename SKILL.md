@@ -1180,6 +1180,7 @@ el.dispatchEvent(new Event('input', {bubbles: true}));
 | `scripts/sync-group-coupons.js` | 点「同步线上数据」+ 抓 `synProduct` 响应 + 回读全量券（切 100 条/页） | 是（同步本身） |
 | `scripts/read-group-coupons.js` | **只读**：团购券设置全量表（名称/平台/状态/身份限制/核销次数/使用时间/内容） | 否 |
 | `scripts/audit-group-coupon-dialogs.js` | **只读**：逐条开「团购关联」弹窗，把礼品套餐/专场卡/商品/网费现金+赠送四类实际值列出来（列表摘要分不清网费、商品和专场卡）；先校验 `条数 == 总数` 防 100 条/页没切成功 | 否 |
+| `scripts/push-via-api.py` | **只读本地 + 改远端**：git 通道不通（代理 CONNECT 502 / 443 超时）时，用 Git Data API 把本地提交接到远端 main 之后（造 tree 相同的孪生提交，通道恢复后 rebase 自动跳过） | 是（改远端历史） |
 | `scripts/bind-group-coupons.js` | 批量绑团购券内容：三个必填下拉 → 清商品 → 填网费 → 双重确认（`CFG` 改券名与金额） | 默认**是** |
 | `scripts/fix-group-coupons-goods-to-fee.js` | 批量把「商品代网费」改成网费（使用限制已对就不动 → 删商品 → 填现金+赠送 → 双重确认，`ONLY` 单条试跑） | 默认**是** |
 | `scripts/gen-package-image.py` | 生成套餐宣传图 800×800（渐变+套餐名+价格），末尾自动调 fit-image.py 压到 ≤480KB | 否（只写图） |

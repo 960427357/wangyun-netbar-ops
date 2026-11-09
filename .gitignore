@@ -16,3 +16,6 @@ Thumbs.db
 
 # Release 打包产物（scripts/build-release.sh 生成）
 dist/
+
+# Git Data API 推送的本地映射（临时）
+.api-push-map.json
