@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.6.36
+version: 1.6.37
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -76,7 +76,7 @@ await page.waitForTimeout(3000);   // 页面会自己渲染出来，不用 reloa
 同一条流水线里的多步操作，**尽量写进同一个脚本**（例如 `scripts/create-publish-groupon.js`
 把「建套餐 + 上架 + 复核」一次跑完），不要拆成三个脚本来回切。
 
-### 脚本写法三条硬规矩（踩过才记住，白等半小时）
+### 脚本写法五条硬规矩（踩过才记住，白等半小时）
 
 1. **文件内容就是一个裸箭头函数，末尾不许加分号。**
    CLI 会把文件包成 `( <你的代码> )(page)` 再执行。写成 `async page => {…};` 就会变成
@@ -95,6 +95,21 @@ await page.waitForTimeout(3000);   // 页面会自己渲染出来，不用 reloa
    - 开关：`page.locator('.el-switch').first().click()`（真实点击，**别用 evaluate 里的 .click()**）
    - 下拉：点 `.el-select__wrapper`（不是外层 `.el-select`，点外层不展开）
    症状都是「脚本一路 ok，存进去发现没勾上」，比报错更难查。
+5. 🔴 **列表页 `goto` 之后要等表格渲染完成，不能只 `waitForTimeout`。**
+   avue-crud 的表格是异步渲染，网络慢的时候 5 秒还没出数据，此时按文本找行会得到
+   `ROW NOT FOUND`，而**同样的名字在下一次回读里明明存在**，很容易误判成「券名匹配写错了」。
+   正确写法：轮询到「行数 > 0 且分页器出现『共』」再动手。
+   ```js
+   for (let i = 0; i < 25; i++) {
+     const ok = await page.evaluate(() => {
+       const vis = e => e && e.offsetParent !== null;
+       return [...document.querySelectorAll('.el-table__body tbody tr')].filter(vis).length > 0
+         && /共/.test((document.querySelector('.el-pagination__total') || {}).innerText || '');
+     });
+     if (ok) break;
+     await page.waitForTimeout(800);
+   }
+   ```
 
 若 `playwright-cli` 不存在：`npm install -g @playwright/cli@latest`。
 登录态由持久化 profile 保留，用户登录一次后可直接继续。**永远不要索取、代填、记录账号密码。**
@@ -1980,3 +1995,17 @@ v1.6.36 补充（🔴 **团购券绑定：三个必填下拉漏一个就静默�
   `【直播专享】39.9元得150元网费`（原挂 29.9享100 套餐）。
 - 脚本：`sync-group-coupons.js`（同步+回读）、`read-group-coupons.js`（只读盘点）、
   `bind-group-coupons.js`（批量绑定，含 ONLY 单条试跑）。
+
+v1.6.37 补充（`12-团购上架.md` §9.12，脚本硬规矩升到 5 条）：
+
+- 换场所后 `goto` 同一路由，右上角场所名变 `场所C`，券列表换成另一套 14 条，
+  再次印证团购券是**场所级数据**（§10.1）。
+- 场所C同步 200/操作成功，14 → 14 无增减，**14 条全部已有绑定内容**，本轮只修金额不新建。
+- 修 3 条：`【马年限定】29.9元得35元网费`（原挂商品 30元得35元网费）、
+  `【老会员】网费特惠29.9享35`（原现金 30、赠送空，合计少 5 元）、
+  `【新老会员通用】99享308网费畅玩套餐`（原 99+201=300，少 8 元）。
+  改后 14/14 全部满足「现金=实付、合计=券面」。
+- 🔴 **新坑（脚本硬规矩第 5 条）**：`goto` 后只 `waitForTimeout` 不够，avue-crud 表格异步渲染，
+  5 秒可能还没数据，按名字找行返回 `ROW NOT FOUND`，而回读时名字明明都在，
+  极易误判成「券名写错」。必须轮询到「行数>0 且分页器出现『共』」再操作。
+- `bind-group-coupons.js` 的 `openPage()` 已内置该轮询。

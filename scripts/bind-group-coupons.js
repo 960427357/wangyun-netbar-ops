@@ -6,14 +6,9 @@ async page => {
   const URL = B + '/marketManage/verificationManagement/groupSet';
 
   const CFG = [
-    { name: '【老会员】99.9享150网费',                              cash: 99.9, gift: 50.1,  limit: '不限制' },
-    { name: '【首购新客】39.9元得100元网费（限系统未注册新会员）',   cash: 39.9, gift: 60.1,  limit: '限新会员' },
-    { name: '【直播专享】69.9元得150元网费',                        cash: 69.9, gift: 80.1,  limit: '不限制' },
-    { name: '【直播专享】39.9元得150元网费（限系统未注册新会员）',   cash: 39.9, gift: 110.1, limit: '限新会员' },
-    { name: '【新会员】39.9享100网费｜限未注册用户',                 cash: 39.9, gift: 60.1,  limit: '限新会员' },
-    { name: '【老会员】29.9得35网费｜不限购可叠加',                  cash: 29.9, gift: 5.1,   limit: '不限制' },
-    { name: '【老会员】49.9得70网费｜不限购可叠加',                  cash: 49.9, gift: 20.1,  limit: '不限制' },
-    { name: '【新会员】49.9享150网费｜限未注册用户',                 cash: 49.9, gift: 100.1, limit: '限新会员' },
+    { name: '【马年限定不限购可叠加】29.9元得35元网费', cash: 29.9, gift: 5.1, limit: '不限制' },
+    { name: '【老会员】网费特惠29.9享35｜不限购可叠加',   cash: 29.9, gift: 5.1, limit: '不限制' },
+    { name: '【新老会员通用】99享308网费畅玩套餐',       cash: 99,   gift: 209, limit: '不限制' },
   ];
 
   const ONLY = -1;
@@ -36,6 +31,17 @@ async page => {
       if (hit) hit.click();
     });
     await page.waitForTimeout(2400);
+    // 等表格真正渲染出来（网络慢时 5200ms 不够，会有行读不到）
+    for (let i = 0; i < 25; i++) {
+      const ok = await page.evaluate(() => {
+        const vis = e => e && e.offsetParent !== null;
+        const rows = [...document.querySelectorAll('.el-table__body tbody tr')].filter(vis);
+        const total = (document.querySelector('.el-pagination__total') || {}).innerText || '';
+        return rows.length > 0 && /共/.test(total);
+      });
+      if (ok) return;
+      await page.waitForTimeout(800);
+    }
   };
 
   const openEdit = async (name) => page.evaluate(name => {
