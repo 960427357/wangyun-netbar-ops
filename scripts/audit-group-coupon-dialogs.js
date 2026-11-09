@@ -35,7 +35,16 @@ async page => {
       .map(tr => n(tr.querySelectorAll('td')[0].innerText));
   });
 
-  const line = [];
+  // 场所名（券列表是场所级数据，先确认读到的是哪一家）
+  const place = await page.evaluate(() => {
+    const n = s => (s || '').replace(/\s+/g, ' ').trim();
+    const h = document.querySelector('.el-header');
+    if (!h) return '(no header)';
+    const skip = /^(管理员|超级管理员|店长|收银员|AI 旺.*|退出|退出登录|首页|消息|设置|在线客服.*|商务咨询.*)$/;
+    return [...new Set([...h.querySelectorAll('*')].map(e => n(e.innerText))
+      .filter(t => t && !skip.test(t) && t.length <= 30))].slice(0, 3).join(' / ');
+  });
+  const line = ['场所=' + place, '条数=' + names.length];
   for (let idx = 0; idx < names.length; idx++) {
     const opened = await page.evaluate(i => {
       const n = s => (s || '').replace(/\s+/g, ' ').trim();
