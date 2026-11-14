@@ -143,7 +143,7 @@ python scripts/fit-image.py 图.png --check     # 先体检
 
 ```
 wangyun-netbar-ops/
-├── SKILL.md                    # 主入口：触发条件、三十二条铁律、路由表、高频操作
+├── SKILL.md                    # 主入口：触发条件、三十三条铁律、路由表、高频操作
 ├── DISCLAIMER.md               # ⚠️ 免责声明与使用条款（中英文），使用前请先读
 ├── references/
 │   ├── 01-功能地图.md           9 大模块完整菜单树 + 全部路由 + 只读页清单
