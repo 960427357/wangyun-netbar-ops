@@ -5,7 +5,7 @@ github: https://github.com/960427357/wangyun-netbar-ops
 description: 操作「旺云商户端」网吧/网咖后台（wyb.5188cloud.net）的技能包。用于查询与配置区域费率、机位价格、通宵包夜、会员等级折扣、上网卡与专场卡、商品上架与吧台补货、团购核销、员工权限与提成、促销活动与礼包、门店开关与支付配置。当用户提到旺云商户端、5188cloud、网咖后台、网吧管理系统、上架商品、补货到吧台、某机位多少钱一小时、通宵多少、改会员折扣、加员工权限、发券做活动、核销团购订单，或给出 wyb.5188cloud.net 链接时使用。
 metadata:
   author: 960427357
-version: 1.6.44
+version: 1.6.45
 display_name: "旺云商户端运营助手"
 display_name_en: "Wangyun Netbar Console Ops"
 description_zh: "旺云商户端（wyb.5188cloud.net）全站操作技能：费率查询、商品上架、会员促销、员工权限"
@@ -13,7 +13,7 @@ description_en: "Skill pack for the Wangyun netbar merchant console: rates, good
 visibility: "public"
 ---
 
-# 旺云商户端运营助手 v1.6.44
+# 旺云商户端运营助手 v1.6.45
 
 旺云商户端是网吧/网咖的 SaaS 后台（`https://wyb.5188cloud.net`，Vue + Element UI 单页应用），
 9 个一级模块、约 100 个叶子页。本技能包把它的导航结构、字段语义、配置依赖顺序和踩过的坑固化成文档，
@@ -481,11 +481,19 @@ if (!shop) throw new Error('未取到场所名');   // 取不到就停，不要�
     - **只配策略不会产生记录**，必须真的发生一次充值时命中该策略；停用策略不删已有记录。
     - 未验证项（真实数据行字段、操作列按钮、三种状态的出现条件）在平台修好前**一律标注待补测**。
 
-33. **真实场所名 / 会员姓名不许进仓库 —— 文档、提交信息、Release 正文都算。**
+33. **真实场所名 / 会员姓名不许进仓库 —— 文档、提交信息、Release 正文、历史提交、工具脚本本身，全都算。**
     - 本仓库公开。案例一律写「场所A ~ 场所F」，代号含义见 §八「场所代号」，
-      完整对照只留本地，**不入库、不写进任何提交信息**。
+      完整对照只留本地，**不入库、不写进任何提交信息、不写进任何脚本**。
     - 🔴 最容易被忽略的不是 `references/`，是**提交信息和 Release 正文**：这两处是「日志」性质，
       写起来顺手就把店名带进去了，而它们恰恰是别人第一眼看到的东西。
+    - 🔴 **第二容易被忽略的是脱敏工具自己**（v1.6.45 实测踩中）：把「真实名 → 代号」的映射表
+      写进 `scrub-venue-names.py`，等于把要藏的东西做成一张结构化清单交出去，比不脱敏更糟。
+      **映射必须放仓库之外**（`../.scrub-private/venue-map.json`，可用 `SCRUB_VENUE_MAP` 指定），
+      脚本本体零真实名称；缺映射文件要直接报错，不许静默降级。
+    - 🔴 **改了工作区不等于洗了历史**：GitHub 上任何旧提交都能翻文件正文。只洗 HEAD 会把
+      「42 条历史提交仍带真名」这个事实留下来。要洗历史得逐提交重写文件内容，不是只改提交信息。
+    - 🔴 扫描范围要覆盖**全仓**（`.md/.js/.py/.json/.sh/.txt/.yml`），只扫那几个文档会漏掉脚本与配置。
+      用 `python scripts/scrub-venue-names.py --scan` 做推送前门禁，**残留 0 行才算过**。
     - 🔴 写案例时用**特征**代替店名：「第 3 家店，13 条，6 条假合规」比「XX网咖 13 条」信息量更大且不指认。
     - 改历史成本：提交信息一旦推出去了，改就得重写历史 + 强推 + 重建所有 tag/Release，
       所以**在 commit 之前检查**，不要指望事后补。
@@ -1298,6 +1306,9 @@ el.dispatchEvent(new Event('input', {bubbles: true}));
 | `scripts/probe-recharge-batch-records2.js` | **只读**：用 `waitForResponse` 精确抓 `rechargeBatchStrategy/page` 的状态与响应体，定性「真 0 条」还是「渲染失败」 | 否 |
 | `scripts/test-inbound-new-product.js` | 端到端：建不存在的商品名 → 填数量/出货/价格 → 提交入库 → 抓 `goodsWarehousing` | 是 |
 | `scripts/push-via-api.py` | **只读本地 + 改远端**：git 通道不通（代理 CONNECT 502 / 443 超时）时，用 Git Data API 把本地提交接到远端 main 之后（造 tree 相同的孪生提交，通道恢复后 rebase 自动跳过） | 是（改远端历史） |
+| `scripts/scrub-venue-names.py` | **脱敏**：把真实场所名/姓名替换成 `场所A~F`。默认 dry-run 打印逐行 diff + **全仓**残留扫描；`--apply` 写回；`--scan` 只扫不改（推送前门禁，残留必须 0）。映射读仓库外的 `../.scrub-private/venue-map.json`，本脚本不含任何真实名称 | 仅 `--apply` 时改文件 |
+| `scripts/scrub-commit-msg.py` | `git filter-branch --msg-filter` 用，把提交信息里的真实名称换成代号；复用上面的映射。**必须给绝对路径**（filter-branch 的工作目录是 `.git-rewrite/t`） | 是（重写历史） |
+| `scripts/force-push-via-api.py` | 搬运「已重写」的历史：复用本地每个提交的 tree（要求远端已有该 tree），只重建 commit 对象后 force 更新 ref；`--retag` 同步移动 tag。**只适用于内容不变的重写**；内容变了要用 `git push --force` | 是（强推） |
 | `scripts/bind-group-coupons.js` | 批量绑团购券内容：三个必填下拉 → 清商品 → 填网费 → 双重确认（`CFG` 改券名与金额） | 默认**是** |
 | `scripts/fix-group-coupons-goods-to-fee.js` | 批量把「商品代网费」改成网费（使用限制已对就不动 → 删商品 → 填现金+赠送 → 双重确认，`ONLY` 单条试跑） | 默认**是** |
 | `scripts/gen-package-image.py` | 生成套餐宣传图 800×800（渐变+套餐名+价格），末尾自动调 fit-image.py 压到 ≤480KB | 否（只写图） |
@@ -1354,6 +1365,32 @@ el.dispatchEvent(new Event('input', {bubbles: true}));
 B 与 E 是同一连锁的两家店（页头尾码相同）。**裸称在文档里已被替换成代号，不要试图还原成真名**。
 
 写文档时的替换脚本：`scripts/scrub-venue-names.py`（含 dry-run，改前先跑一遍看 diff）。
+🔴 映射表放在仓库**外**的 `../.scrub-private/venue-map.json`，脚本本体不含真实名称；
+`--scan` 只扫不改，推送前必须跑到 **0 行残留**。
+
+### 推送这一下，两个必知
+
+**一、git 通道的真凶是 HTTP/2，不是网络。** 症状是 `Empty reply from server`、
+`CONNECT tunnel failed, 502`、`OpenSSL SSL_read: unexpected eof while reading`，
+看起来像被墙，其实换协议版本就好：
+
+```bash
+git config http.version HTTP/1.1
+```
+
+本仓库已写入 `.git/config`。配好之后 `ls-remote` / `push` 都正常，
+**大改历史时优先用 `git push --force` + `git push --force --tags`**——
+全量重写会产生大量远端不存在的新 tree，走 Git Data API 得逐个上传，`git push` 一次就完事。
+
+**二、推送前跑脱敏门禁，三处都要过：**
+
+| 位置 | 检查 |
+|---|---|
+| 全仓文件 | `python scripts/scrub-venue-names.py --scan` → 残留 0 行 |
+| 提交信息 | `git log --all --format=%B \| grep -E "<关键词>"` → 无命中 |
+| 待发 Release | `name` 与 `body` 都过一遍（**标题也会被扫到**） |
+
+**检查必须在 commit 之前**。已经推出去再补救，代价是重写历史 + 强推 + 重建全部 tag/Release。
 
 ### 第一次接手一家新店，按这个顺序
 1. 启动后台常驻会话（§一），让店主自己登录。
@@ -2323,3 +2360,23 @@ v1.6.44 补充（🔴 **真实场所名与会员姓名全部脱敏为场所A~F�
   在原文里有时只写品牌名不带区名，全局替换会把史实写错，所以裸称一律走「短语级」精确规则。
 - 已发布的 Release 正文同步 PATCH 干净；**提交信息无法安全修改**（要重写历史 + 强推 + 重建 tag），
   已在铁律里写明「commit 之前检查，不要指望事后补」。
+
+v1.6.45 补充（🔴 **脱敏工具自己成了最大泄露点；历史的文件内容也得洗**）：
+
+- 上一版把「真实名称 → 场所代号」的对照表直接写在 `scripts/scrub-venue-names.py` 里再提交，
+  等于把要藏的东西做成一张干净的结构化清单交出去（6 家门店全称 + 3 个会员姓名）。
+  **扫描器只扫那 5 个文档，没扫脚本自己**，所以上一轮「残留 0」的结论是假阴性。
+- 修复：映射迁到仓库外的 `../.scrub-private/venue-map.json`（`SCRUB_VENUE_MAP` 可覆盖），
+  脚本本体零真实名称；缺映射直接报错，不做静默降级；新增 `--scan` 只扫不改，
+  扫描范围扩到全仓 `.md/.js/.py/.json/.sh/.txt/.yml`。
+- 🔴 **洗工作区 ≠ 洗历史**：GitHub 上任何旧提交都能翻文件正文。实测 **87 条提交里 42 条**
+  的文件内容仍带真名（最早到 2026-11-01）。上一轮只重写了提交信息，文件内容没动。
+- 洗历史用 `git filter-branch --tree-filter`（**逐提交重写文件内容**，不是 `--msg-filter`），
+  清洗器同样放仓库外。注意 `filter-branch` 会给旧 ref 留 `refs/original/`，
+  **校验时要把 `refs/original/*` 排除掉**，否则会把备份误判成「还有残留」。
+- 🔴 **git 通道的真凶是 HTTP/2**：`Empty reply from server` / `OpenSSL SSL_read: unexpected eof`
+  看着像被墙，其实 `git config http.version HTTP/1.1` 就通了。配好之后
+  `git push --force` + `git push --force --tags` 一把过，比 Git Data API 逐个上传 tree 快得多
+  （**内容变了的重写必须用 git push**，`force-push-via-api.py` 要求远端已有 tree，用不了）。
+- 结果：84 个提交全历史 0 残留；64 个 tag 与远端逐一对齐（annotated tag 要对
+  `^{}` 解引用后再比）；46 个 Release 未受影响，Latest 仍是 v1.6.44。

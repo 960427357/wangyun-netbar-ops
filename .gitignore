@@ -19,3 +19,6 @@ dist/
 
 # Git Data API 推送的本地映射（临时）
 .api-push-map.json
+
+# force-push 本地映射（临时）
+.api-force-push-map.json
